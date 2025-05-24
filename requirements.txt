@@ -1,0 +1,10 @@
+fastapi~=0.115.12
+uvicorn[standard]
+playwright~=1.51.0
+yescaptcha~=0.1.0
+sqlalchemy~=2.0.40
+pydantic~=2.11.3
+aiohttp
+python-dotenv
+requests~=2.32.3
+sqladmin~=0.20.1
