@@ -8,3 +8,4 @@ aiohttp
 python-dotenv
 requests~=2.32.3
 sqladmin~=0.20.1
+email-validator

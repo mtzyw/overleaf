@@ -1,9 +1,43 @@
 # crud.py
 
 import time
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 import models
+
+def create_account(
+    db: Session,
+    email: str,
+    password: str,
+    group_id: str,
+    max_invites: int = 100
+) -> models.Account:
+    """
+    新增一个账号记录
+    """
+    acct = models.Account(
+        email=email,
+        password=password,
+        group_id=group_id,
+        max_invites=max_invites,
+        invites_sent=0,
+        updated_at=int(time.time())
+    )
+    db.add(acct)
+    db.commit()
+    db.refresh(acct)
+    return acct
+
+def delete_account(db: Session, email: str) -> bool:
+    """
+    根据 email 删除账号，返回 True 表示删除成功，False 表示未找到
+    """
+    acct = db.query(models.Account).filter(models.Account.email == email).first()
+    if not acct:
+        return False
+    db.delete(acct)
+    db.commit()
+    return True
 
 def get_card(db: Session, code: str) -> Optional[models.Card]:
     return (
