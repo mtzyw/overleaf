@@ -1,5 +1,3 @@
-# routers/maintenance.py
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -22,7 +20,7 @@ def get_db():
 def cleanup_expired(db: Session = Depends(get_db)):
     """
     清理所有已过期且未清理的邀请记录，
-    返回本次成功清理的总数。
+    返回本次清理成功的总条数。
     """
     cleaned = crud.clean_expired_invites(db)
     return {"cleaned": cleaned}

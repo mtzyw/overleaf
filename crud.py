@@ -1,10 +1,8 @@
-# crud.py
-
 import time
-from typing import Optional, List
+import requests
+from typing import Optional
 from sqlalchemy.orm import Session
 import models
-import requests
 
 def create_account(
     db: Session,
@@ -13,9 +11,6 @@ def create_account(
     group_id: str,
     max_invites: int = 100
 ) -> models.Account:
-    """
-    新增一个账号记录
-    """
     acct = models.Account(
         email=email,
         password=password,
@@ -30,9 +25,6 @@ def create_account(
     return acct
 
 def delete_account(db: Session, email: str) -> bool:
-    """
-    根据 email 删除账号，返回 True 表示删除成功，False 表示未找到
-    """
     acct = db.query(models.Account).filter(models.Account.email == email).first()
     if not acct:
         return False
@@ -99,17 +91,33 @@ def create_invite_record(
         expires_at  = expires_ts,
         success     = success,
         result      = str(result),
-        created_at  = now_ts
+        created_at  = now_ts,
+        cleaned     = False
     )
     db.add(rec)
     db.commit()
     db.refresh(rec)
     return rec
 
+def update_invite_expiry(
+    db: Session,
+    invite: models.Invite,
+    new_expires_at: int,
+    result: dict
+) -> models.Invite:
+    """
+    续期时：更新 expires_at、result、success 并重置 cleaned=False；
+    不修改 created_at，保留首次邀请时间。
+    """
+    invite.expires_at = new_expires_at
+    invite.result     = str(result)
+    invite.success    = True
+    invite.cleaned    = False
+    db.commit()
+    db.refresh(invite)
+    return invite
+
 def create_card(db: Session, code: str, days: int = 7) -> models.Card:
-    """
-    新增一张卡密，默认有效期 days 天。
-    """
     card = models.Card(code=code, days=days)
     db.add(card)
     db.commit()
@@ -117,9 +125,6 @@ def create_card(db: Session, code: str, days: int = 7) -> models.Card:
     return card
 
 def delete_card(db: Session, code: str) -> bool:
-    """
-    根据 code 删除卡密。返回 True 表示找到并删除，False 表示未找到。
-    """
     card = db.query(models.Card).filter(models.Card.code == code).first()
     if not card:
         return False
@@ -127,18 +132,17 @@ def delete_card(db: Session, code: str) -> bool:
     db.commit()
     return True
 
-
 def clean_expired_invites(db: Session) -> int:
     """
-    查找所有 expires_at < now 且 cleaned=False 的邀请，
-    调用 /member/remove 接口删除对应成员，
-    并在本地把 cleaned 标记为 True。
-    返回成功清理的记录数。
+    查找所有 expires_at < now 且 cleaned=False 的 Invite，
+    调用删除接口后标记 cleaned=True。
+    返回成功清理的条数。
     """
     now_ts = int(time.time())
     expired = (
         db.query(models.Invite)
-          .filter(models.Invite.expires_at < now_ts, models.Invite.cleaned.is_(False))
+          .filter(models.Invite.expires_at < now_ts,
+                  models.Invite.cleaned.is_(False))
           .all()
     )
     count = 0
@@ -151,10 +155,9 @@ def clean_expired_invites(db: Session) -> int:
             )
             if resp.status_code in (200, 204):
                 inv.cleaned = True
-                db.add(inv)
                 db.commit()
                 count += 1
         except Exception:
-            # 网络或逻辑错误时跳过，下一次还能再试
+            # 出错下次再试
             continue
     return count
