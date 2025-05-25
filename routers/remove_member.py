@@ -35,7 +35,8 @@ async def remove_member(
         db.query(models.Invite)
           .filter(
               models.Invite.email == body.email,
-              models.Invite.email_id.isnot(None)
+              models.Invite.email_id.isnot(None),
+              models.Invite.cleaned.is_(False)  # 只处理未清理的
           )
           .order_by(models.Invite.created_at.desc())
           .first()
@@ -95,6 +96,11 @@ async def remove_member(
         acct.invites_sent -= 1
         db.commit()
         db.refresh(acct)
+
+    # —— 新增：标记这条邀请记录已经清理 —— #
+    invite.cleaned = True
+    db.add(invite)
+    db.commit()
 
     return schemas.RemoveMemberResponse(
         status="success",
