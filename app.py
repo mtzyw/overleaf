@@ -1,6 +1,7 @@
 # app.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from database import engine, Base
 import models
 from playwright_manager import close_browser
@@ -9,6 +10,7 @@ from playwright_manager import close_browser
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Overleaf Inviter 管理后台")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # --- CORS 设置 START ---
 app.add_middleware(
