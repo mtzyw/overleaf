@@ -106,12 +106,32 @@ async def invite(
         result = await asyncio.to_thread(
             send_invite, session, new_csrf, acct.group_id, req.email, expires_iso
         )
+        # 保存最新的 session/csrf
         crud.update_account_tokens(db, acct, new_csrf, new_sess)
 
-    # 5. 记录本地数据库 & 返回
+    # 5. 记录 & 更新本地数据库
     crud.increment_invites(db, acct)
     crud.mark_card_used(db, card)
-    crud.create_invite_record(db, acct, req.email, expire_ts, True, result, card)
+
+    # —— 新逻辑：如果已有该邮箱的邀请记录，就更新它，否则新建 —— #
+    last_inv = (
+        db.query(models.Invite)
+          .filter(models.Invite.email == req.email)
+          .order_by(models.Invite.created_at.desc())
+          .first()
+    )
+    if last_inv:
+        last_inv.expires_at = expire_ts
+        last_inv.result     = str(result)
+        last_inv.success    = True
+        last_inv.created_at = now_ts
+        db.commit()
+        db.refresh(last_inv)
+        record = last_inv
+    else:
+        record = crud.create_invite_record(
+            db, acct, req.email, expire_ts, True, result, card
+        )
 
     return schemas.InviteResponse(
         success=True,
@@ -134,8 +154,10 @@ def list_invites(
     q = db.query(models.Invite)
     if email:
         q = q.filter(models.Invite.email == email)
-    invites = q.order_by(models.Invite.created_at.desc()) \
-               .offset((page - 1) * size) \
-               .limit(size) \
-               .all()
+    invites = (
+        q.order_by(models.Invite.created_at.desc())
+         .offset((page - 1) * size)
+         .limit(size)
+         .all()
+    )
     return invites
