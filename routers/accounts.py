@@ -66,21 +66,32 @@ async def refresh_account(
     from overleaf_utils import get_tokens, get_captcha_token, perform_login, refresh_session, get_new_csrf
     import requests
 
+    # 初始化，避免未赋值引用
+    new_sess = acct.session_cookie if acct.session_cookie else None
+    new_csrf = acct.csrf_token if acct.csrf_token else None
     session = requests.Session()
-    need_login = not (acct.session_cookie and acct.csrf_token)
+    need_login = not (new_sess and new_csrf)
+
     if not need_login:
-        session.cookies.set("overleaf_session2", acct.session_cookie,
-                            domain=".overleaf.com", path="/")
+        session.cookies.set(
+            "overleaf_session2", new_sess,
+            domain=".overleaf.com", path="/"
+        )
         try:
-            new_sess = await refresh_session(session, acct.csrf_token)
+            # 第一次尝试刷新
+            refreshed = await refresh_session(session, new_csrf)
+            new_sess = refreshed
             new_csrf = await get_new_csrf(session, acct.group_id)
         except Exception:
             need_login = True
+
     if need_login:
+        # 重新登录获取 token
         csrf0, sess0 = await get_tokens()
         captcha = get_captcha_token()
         session = perform_login(csrf0, sess0, acct.email, acct.password, captcha)
         new_sess = refresh_session(session, csrf0)
         new_csrf = get_new_csrf(session, acct.group_id)
 
+    # 更新数据库并返回最新信息
     return crud.update_account_tokens(db, acct, new_csrf, new_sess)

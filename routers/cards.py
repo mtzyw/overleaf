@@ -1,8 +1,8 @@
 # routers/cards.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-from typing import List, Union, Optional
+from typing import List
 
 import models, crud, schemas
 from database import SessionLocal
@@ -20,40 +20,33 @@ def get_db():
 def list_cards(
     page: int = 1,
     size: int = 50,
-    used: Optional[bool] = None,
+    used: bool | None = None,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Card)
     if used is not None:
         query = query.filter(models.Card.used == used)
-    cards = query.offset((page-1)*size).limit(size).all()
-    return cards
+    return query.offset((page-1)*size).limit(size).all()
 
 @router.post("/add", response_model=List[schemas.CardOut])
 def add_cards(
-    data: Union[schemas.CardCreate, List[schemas.CardCreate]],
+    data: List[schemas.CardCreate] = Body(..., example=[{"code":"abc12","days":7}]),
     db: Session = Depends(get_db)
 ):
     """
-    批量或单个新增卡密。如果某个 code 已存在，则跳过。
+    批量新增卡密。接收一个数组，每项包含 code 和 days。
+    如果某个 code 已存在，则跳过。
     返回所有新创建的 Card 对象列表。
     """
-    items = data if isinstance(data, list) else [data]
-    created: List[models.Card] = []
-    for item in items:
-        # 先检查是否已存在
-        existing = db.query(models.Card).filter(models.Card.code == item.code).first()
-        if existing:
-            # 跳过已存在的 code
-            continue
-        # 不存在则创建
-        card = crud.create_card(db, item.code, item.days)
-        created.append(card)
+    created: list[models.Card] = []
+    for item in data:
+        if not db.query(models.Card).filter(models.Card.code == item.code).first():
+            created.append(crud.create_card(db, item.code, item.days))
     return created
 
 @router.post("/delete")
 def delete_card(
-    body: schemas.CardDeleteRequest,
+    body: schemas.CardDeleteRequest = Body(...),
     db: Session = Depends(get_db)
 ):
     success = crud.delete_card(db, body.code)
