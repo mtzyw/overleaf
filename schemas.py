@@ -95,3 +95,6 @@ class MemberEmailRequest(BaseModel):
 class RemoveMemberResponse(BaseModel):
     status: str
     detail: str
+
+class CleanupResponse(BaseModel):
+    cleaned: int   # 本次成功清理的记录数

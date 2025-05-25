@@ -36,14 +36,16 @@ class Card(Base):
 class Invite(Base):
     __tablename__ = "invites"
 
-    id         = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
-    card_id    = Column(Integer, ForeignKey("cards.id"), nullable=True)
-    email      = Column(String, nullable=False)
-    email_id = Column(String, nullable=True)  # 👈 新增字段，允许为空
-    expires_at = Column(Integer, nullable=False)  # Unix 时间戳
-    success    = Column(Boolean, nullable=False)
-    result     = Column(String, nullable=False)
-    created_at = Column(Integer, nullable=False)  # Unix 时间戳
+    id          = Column(Integer, primary_key=True, index=True)
+    account_id  = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    card_id     = Column(Integer, ForeignKey("cards.id"), nullable=True)
+    email       = Column(String, nullable=False)
+    email_id    = Column(String, nullable=True)   # 成员在 Overleaf 上的 user id
+    expires_at  = Column(Integer, nullable=False) # Unix 时间戳
+    success     = Column(Boolean, nullable=False)
+    result      = Column(String, nullable=False)
+    created_at  = Column(Integer, nullable=False) # Unix 时间戳
+    cleaned     = Column(Boolean, default=False, nullable=False)  # 是否已被清理过期
+
     account = relationship("Account", back_populates="invites")
-    card    = relationship("Card", back_populates="invites")
+    card    = relationship("Card",    back_populates="invites")

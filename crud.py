@@ -4,6 +4,7 @@ import time
 from typing import Optional, List
 from sqlalchemy.orm import Session
 import models
+import requests
 
 def create_account(
     db: Session,
@@ -125,3 +126,35 @@ def delete_card(db: Session, code: str) -> bool:
     db.delete(card)
     db.commit()
     return True
+
+
+def clean_expired_invites(db: Session) -> int:
+    """
+    查找所有 expires_at < now 且 cleaned=False 的邀请，
+    调用 /member/remove 接口删除对应成员，
+    并在本地把 cleaned 标记为 True。
+    返回成功清理的记录数。
+    """
+    now_ts = int(time.time())
+    expired = (
+        db.query(models.Invite)
+          .filter(models.Invite.expires_at < now_ts, models.Invite.cleaned.is_(False))
+          .all()
+    )
+    count = 0
+    for inv in expired:
+        try:
+            resp = requests.post(
+                "https://overapi.shayudata.com/api/v1/member/remove",
+                json={"email": inv.email},
+                timeout=10
+            )
+            if resp.status_code in (200, 204):
+                inv.cleaned = True
+                db.add(inv)
+                db.commit()
+                count += 1
+        except Exception:
+            # 网络或逻辑错误时跳过，下一次还能再试
+            continue
+    return count

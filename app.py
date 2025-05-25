@@ -6,6 +6,7 @@ from database import engine, Base
 import models
 from playwright_manager import close_browser
 
+
 # 自动创建所有表
 Base.metadata.create_all(bind=engine)
 
@@ -78,12 +79,14 @@ from routers.cards import    router as cards_router
 from routers.invites import  router as invite_router
 from routers.update_email_id import router as update_email_id_router
 from routers.remove_member   import router as remove_member_router
+from routers.maintenance import router as maintenance_router
 
 app.include_router(accounts_router,    tags=["accounts"])
 app.include_router(cards_router,       tags=["cards"])
 app.include_router(invite_router,      tags=["invites"])
 app.include_router(update_email_id_router, tags=["members"])
 app.include_router(remove_member_router,   tags=["members"])
+app.include_router(maintenance_router, tags=["maintenance"])
 
 @app.on_event("shutdown")
 async def on_shutdown():
