@@ -16,8 +16,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 配置区
 API_URL        = "https://overapi.shayudata.com/api/v1/cards/add"
-BATCH_SIZE     = 100   # 每批上传量
-COUNT_7        = 300   # 要生成的 7 天卡数量
+BATCH_SIZE     = 20   # 每批上传量
+COUNT_7        = 200   # 要生成的 7 天卡数量
 COUNT_30       = 200    # 要生成的 30 天卡数量
 OUT_SUCCESS_7  = "codes_7days_success.txt"
 OUT_SUCCESS_30 = "codes_30days_success.txt"
@@ -76,7 +76,7 @@ def save_codes(codes, filename):
     """
     with open(filename, 'w', encoding='utf-8') as f:
         for code in codes:
-            f.write(code + "\n")
+            f.write(f"https://overleaf.shayudata.com/{code}\n")
     print(f"已保存 {len(codes)} 条成功卡密到 {filename}")
 
 def main():

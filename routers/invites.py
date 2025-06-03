@@ -13,6 +13,9 @@ from overleaf_utils import (
 
 router = APIRouter(prefix="/api/v1/invite", tags=["invites"])
 
+class GroupFullError(Exception):
+    pass
+
 def get_db():
     db = SessionLocal()
     try:
@@ -38,8 +41,42 @@ def send_invite(
         }
     )
     if resp.status_code != 200:
+        try:
+            data = resp.json()
+            if data.get("error", {}).get("code") == "group_full":
+                raise GroupFullError("当前账号所在的组已满")
+        except Exception:
+            pass
         raise RuntimeError(f"邀请失败: {resp.status_code} {resp.text}")
     return resp.json()
+
+async def try_invite_with_account(acct, req_email, expires_iso, db, card):
+    session = requests.Session()
+
+    # 优先尝试复用 session
+    if acct.session_cookie and acct.csrf_token:
+        session.cookies.set(
+            "overleaf_session2", acct.session_cookie,
+            domain=".overleaf.com", path="/"
+        )
+        try:
+            await asyncio.to_thread(refresh_session, session, acct.csrf_token)
+            new_csrf = await asyncio.to_thread(get_new_csrf, session, acct.group_id)
+            return await asyncio.to_thread(send_invite, session, new_csrf, acct.group_id, req_email, expires_iso), acct
+        except:
+            pass
+
+    # 完整登录流程
+    csrf0, sess0 = await get_tokens()
+    captcha = get_captcha_token()
+    session = await asyncio.to_thread(
+        perform_login, csrf0, sess0, acct.email, acct.password, captcha
+    )
+    new_sess = await asyncio.to_thread(refresh_session, session, csrf0)
+    new_csrf = await asyncio.to_thread(get_new_csrf, session, acct.group_id)
+    result = await asyncio.to_thread(send_invite, session, new_csrf, acct.group_id, req_email, expires_iso)
+    crud.update_account_tokens(db, acct, new_csrf, new_sess)
+    return result, acct
 
 @router.post("", response_model=schemas.InviteResponse)
 async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
@@ -51,50 +88,32 @@ async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
     if not acct:
         raise HTTPException(400, "无可用账号")
 
-    # 2. 计算时间戳 & ISO
+    # 2. 时间戳处理
     now = datetime.now()
     expires = now + timedelta(days=card.days)
     now_ts = int(now.timestamp())
     expires_ts = int(expires.timestamp())
     expires_iso = expires.isoformat()
 
-    # 3. 尝试复用 session/CSRF
-    reuse_ok = False
-    session = requests.Session()
-    if acct.session_cookie and acct.csrf_token:
-        session.cookies.set(
-            "overleaf_session2", acct.session_cookie,
-            domain=".overleaf.com", path="/"
-        )
-        try:
-            new_sess = await asyncio.to_thread(refresh_session, session, acct.csrf_token)
-            new_csrf = await asyncio.to_thread(get_new_csrf, session, acct.group_id)
-            result   = await asyncio.to_thread(
-                send_invite, session, new_csrf, acct.group_id, req.email, expires_iso
-            )
-            reuse_ok = True
-        except Exception:
-            reuse_ok = False
+    # 3. 尝试发送邀请
+    try:
+        result, used_acct = await try_invite_with_account(acct, req.email, expires_iso, db, card)
+    except GroupFullError:
+        # 当前账号所在组已满，尝试换一个账号（手动过滤）
+        next_acct = None
+        all_accounts = db.query(models.Account).filter(models.Account.disabled == False).all()
+        for acc in all_accounts:
+            if acc.email != acct.email:
+                next_acct = acc
+                break
+        if not next_acct:
+            raise HTTPException(400, "所有账号都已满，无法邀请")
+        result, used_acct = await try_invite_with_account(next_acct, req.email, expires_iso, db, card)
 
-    # 4. 如果复用失败，完整登录
-    if not reuse_ok:
-        csrf0, sess0 = await get_tokens()
-        captcha     = get_captcha_token()
-        session     = await asyncio.to_thread(
-            perform_login, csrf0, sess0, acct.email, acct.password, captcha
-        )
-        new_sess    = await asyncio.to_thread(refresh_session, session, csrf0)
-        new_csrf    = await asyncio.to_thread(get_new_csrf, session, acct.group_id)
-        result      = await asyncio.to_thread(
-            send_invite, session, new_csrf, acct.group_id, req.email, expires_iso
-        )
-        crud.update_account_tokens(db, acct, new_csrf, new_sess)
-
-    # 5. 本地更新：increment & mark_card_used
-    crud.increment_invites(db, acct)
+    # 4. 更新数据库
+    crud.increment_invites(db, used_acct)
     crud.mark_card_used(db, card)
 
-    # 6. 如果已有该邮箱的记录，续期；否则新建
     last = (
         db.query(models.Invite)
           .filter(models.Invite.email == req.email)
@@ -104,7 +123,7 @@ async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
     if last:
         crud.update_invite_expiry(db, last, expires_ts, result)
     else:
-        crud.create_invite_record(db, acct, req.email, expires_ts, True, result, card)
+        crud.create_invite_record(db, used_acct, req.email, expires_ts, True, result, card)
 
     return schemas.InviteResponse(
         success    = True,
