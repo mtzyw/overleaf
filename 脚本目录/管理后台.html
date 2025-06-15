@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overleaf Inviter 管理后台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght%40300%3B400%3B700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+    <style>
+        /* 全局样式 */
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            margin: 0;
+            padding: 30px;
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        /* 容器样式 */
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+
+        /* 组长账号卡片样式 */
+        .leader-account {
+            background-color: #ffffff;
+            border: none;
+            padding: 18px 25px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+        .leader-account:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+            background-color: #e8f0fe;
+        }
+        .leader-account strong {
+            color: #34495e;
+            font-size: 1.1em;
+        }
+        .leader-account > span {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            flex-shrink: 0;
+            margin-right: 15px;
+        }
+        .leader-account > span:last-of-type {
+            margin-right: 0;
+        }
+
+
+        /* 组员列表样式 */
+        .member-list {
+            display: none;
+            width: 100%;
+            margin-top: 15px;
+            padding: 15px 25px;
+            border-left: 4px solid #a8dadc;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 组员单行样式 */
+        .member-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed #e0e0e0;
+            font-size: 0.9em;
+            color: #555;
+            gap: 10px; /* 调整间距 */
+        }
+        .member-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .member-item strong {
+            color: #2980b9;
+        }
+        .member-item span {
+            flex-shrink: 0;
+        }
+        .member-item .member-info { /* 包含邮箱和ID的span */
+            flex-grow: 1;
+            min-width: 180px;
+        }
+
+        /* 可编辑过期时间容器和输入框样式 */
+        .member-expires-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-grow: 1; /* 占据可用空间 */
+            min-width: 260px; /* 确保有足够空间显示日期时间输入框 */
+        }
+        .member-expires-input {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9em;
+            flex-grow: 1; /* 输入框在容器内尽可能展开 */
+        }
+        .save-expires-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background-color 0.3s ease;
+            flex-shrink: 0;
+        }
+        .save-expires-btn:hover {
+            background-color: #218838;
+        }
+
+        /* 操作按钮容器 */
+        .member-actions {
+            flex-shrink: 0;
+            display: flex;
+            gap: 5px; /* 如果有多个按钮，增加间距 */
+        }
+        /* 删除按钮样式 */
+        .delete-member-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background-color 0.3s ease;
+            flex-shrink: 0;
+        }
+        .delete-member-btn:hover {
+            background-color: #c0392b;
+        }
+
+        /* 状态信息样式 */
+        .loading {
+            color: #555;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+        }
+        .no-data {
+            color: #7f8c8d;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* 新增：Spinner 样式 */
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3); /* 边框颜色，半透明 */
+            border-radius: 50%; /* 圆形 */
+            border-top: 2px solid #fff; /* 顶部边框，构成旋转效果的主体 */
+            width: 12px;
+            height: 12px;
+            -webkit-animation: spin 1s linear infinite; /* Webkit 浏览器动画 */
+            animation: spin 1s linear infinite; /* 标准动画 */
+            display: inline-block; /* 行内块元素 */
+            vertical-align: middle; /* 垂直居中对齐 */
+            margin-left: 5px; /* 与文本的间距 */
+        }
+
+        /* 定义旋转动画 */
+        @-webkit-keyframes spin {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 按钮禁用时的样式 */
+        .save-expires-btn:disabled,
+        .delete-member-btn:disabled {
+            opacity: 0.7; /* 降低透明度 */
+            cursor: not-allowed; /* 鼠标样式为禁止 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Overleaf Inviter 管理后台</h1>
+        <div id="accounts-container">
+            <p class="loading">正在加载组长账号...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+
+    <script>
+        const BASE_URL = 'http://127.0.0.1:8000'; // 您的后端服务地址
+
+        async function fetchAccounts() {
+            try {
+                const response = await fetch(`${BASE_URL}/api/v1/accounts?page=1&size=100`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const accounts = await response.json();
+                displayAccounts(accounts);
+            } catch (error) {
+                console.error("获取组长账号失败:", error);
+                document.getElementById('accounts-container').innerHTML = '<p class="error">加载账号失败，请检查网络或后端服务。</p>';
+            }
+        }
+
+        function displayAccounts(accounts) {
+            const container = document.getElementById('accounts-container');
+            container.innerHTML = '';
+
+            if (accounts.length === 0) {
+                container.innerHTML = '<p class="no-data">没有找到任何组长账号。</p>';
+                return;
+            }
+
+            accounts.forEach(account => {
+                const leaderDiv = document.createElement('div');
+                leaderDiv.className = 'leader-account';
+                leaderDiv.dataset.leaderEmail = account.email;
+                leaderDiv.innerHTML = `
+                    <span><strong>${account.email}</strong> (组ID: ${account.group_id})</span>
+                    <span>最大邀请数: ${account.max_invites} | 已邀请: ${account.invites_sent}</span>
+                `;
+
+                const memberListDiv = document.createElement('div');
+                memberListDiv.className = 'member-list';
+                memberListDiv.style.display = 'none';
+                leaderDiv.appendChild(memberListDiv);
+
+                leaderDiv.addEventListener('click', () => {
+                    toggleMembers(leaderDiv, account.email);
+                });
+
+                container.appendChild(leaderDiv);
+            });
+        }
+
+        // --- 刷新组员列表内容的函数 ---
+        async function refreshMembersList(leaderDiv, leaderEmail, memberListDiv) {
+            memberListDiv.innerHTML = '<p class="loading">正在刷新组员信息...</p>'; // 显示加载提示
+            try {
+                const membersResponse = await fetch(`${BASE_URL}/api/v1/members_query/leader_members/${leaderEmail}`);
+                if (!membersResponse.ok) {
+                    throw new Error(`HTTP error! status: ${membersResponse.status}`);
+                }
+                const membersData = await membersResponse.json();
+                const activeMembers = membersData.active_members;
+
+                displayMembersContent(memberListDiv, activeMembers); // 渲染内容
+                memberListDiv.dataset.loaded = 'true'; // 标记已加载
+            } catch (error) {
+                console.error(`刷新组员失败:`, error);
+                memberListDiv.innerHTML = `<p class="error">刷新组员失败: ${error.message}</p>`;
+            }
+        }
+
+        async function toggleMembers(leaderDiv, leaderEmail) {
+            const memberListDiv = leaderDiv.querySelector('.member-list');
+            const isHidden = memberListDiv.style.display === 'none';
+
+            if (isHidden) {
+                // 只有当列表当前是隐藏状态，或者被标记为需要刷新时，才去刷新数据
+                if (memberListDiv.innerHTML === '' || memberListDiv.dataset.loaded !== 'true') {
+                     await refreshMembersList(leaderDiv, leaderEmail, memberListDiv); // 调用刷新函数
+                }
+                memberListDiv.style.display = 'block'; // 显示列表
+            } else {
+                memberListDiv.style.display = 'none'; // 隐藏列表
+            }
+        }
+
+        async function displayMembersContent(memberListDiv, members) {
+            memberListDiv.innerHTML = '';
+
+            if (members.length === 0) {
+                memberListDiv.innerHTML = '<p class="no-data">无活跃组员。</p>';
+                return;
+            }
+
+            members.forEach(member => {
+                const memberItemDiv = document.createElement('div');
+                memberItemDiv.className = 'member-item';
+
+                // 左侧信息：邮箱和ID
+                const infoSpan = document.createElement('span');
+                infoSpan.className = 'member-info';
+                infoSpan.innerHTML = `
+                    <strong>邮箱:</strong> ${member.member_email}<br>
+                    <strong>ID:</strong> ${member.email_id || 'N/A'}
+                `;
+                memberItemDiv.appendChild(infoSpan);
+
+                // 中间：可编辑过期时间容器
+                const expiryContainer = document.createElement('span');
+                expiryContainer.className = 'member-expires-container';
+
+                const currentExpiresAt = member.expires_at;
+                const date = new Date(currentExpiresAt * 1000); // Unix timestamp (seconds) to milliseconds
+
+                const expiryInput = document.createElement('input');
+                expiryInput.type = 'text'; // Flatpickr 接管，所以类型设为 text
+                expiryInput.className = 'member-expires-input';
+
+                // --- 阻止点击事件冒泡 (解决点击输入框导致组长列表收缩的问题) ---
+                expiryInput.addEventListener('click', (event) => {
+                    event.stopPropagation(); // 阻止点击 input 时事件冒泡到 leaderDiv
+                });
+
+                // 初始化 Flatpickr
+                flatpickr(expiryInput, {
+                    enableTime: true,        // 启用时间选择
+                    dateFormat: "Y-m-d H:i", // 日期时间格式
+                    locale: "zh",            // 使用中文本地化
+                    defaultDate: date,       // 设置默认值为当前过期时间
+                    time_24hr: true,         // 24小时制
+                    minuteIncrement: 1,      // 分钟步进
+                });
+
+
+                // 重新引入保存按钮 (点击此按钮才触发保存操作)
+                const saveButton = document.createElement('button');
+                saveButton.textContent = '保存';
+                saveButton.className = 'save-expires-btn';
+
+                saveButton.onclick = async (event) => { // 传入 event 参数
+                    event.stopPropagation(); // 阻止点击保存按钮时事件冒泡到 leaderDiv
+
+                    const newDateValue = expiryInput.value;
+                    const newDate = flatpickr.parseDate(newDateValue, "Y-m-d H:i");
+
+                    if (!newDate) { // 如果解析失败
+                        alert('请输入有效的日期和时间！');
+                        return;
+                    }
+
+                    const newExpiresAt = Math.floor(newDate.getTime() / 1000);
+
+                    if (isNaN(newExpiresAt) || newExpiresAt <= 0) {
+                        alert('请输入有效的日期和时间！');
+                        return;
+                    }
+                    // 验证新的过期时间是否是未来的时间 (与后端验证保持一致)
+                    if (newExpiresAt <= Math.floor(Date.now() / 1000)) {
+                         alert('新的过期时间必须是未来的时间！');
+                         return;
+                    }
+
+                    // --- 显示加载状态 ---
+                    saveButton.disabled = true;
+                    const originalSaveText = saveButton.textContent;
+                    saveButton.textContent = '保存中...';
+                    const spinner = document.createElement('span');
+                    spinner.className = 'spinner';
+                    saveButton.appendChild(spinner);
+                    // --- 结束显示加载状态 ---
+
+                    try {
+                        const updateResponse = await fetch(`${BASE_URL}/api/v1/invite/update_expiration`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                email: member.member_email,
+                                expires_at: newExpiresAt
+                            }),
+                        });
+
+                        if (!updateResponse.ok) {
+                            const errorData = await updateResponse.json();
+                            throw new Error(`更新失败: ${errorData.detail || updateResponse.statusText}`);
+                        }
+
+                        const successResponse = await updateResponse.json();
+                        alert(`组员 ${member.member_email} 的过期时间更新成功！\n消息: ${successResponse.message}`);
+
+                        // --- 隐藏加载状态 ---
+                        saveButton.textContent = originalSaveText;
+                        saveButton.disabled = false;
+                        if (saveButton.contains(spinner)) { // 检查 spinner 是否存在再移除
+                            saveButton.removeChild(spinner);
+                        }
+                        // --- 结束隐藏加载状态 ---
+
+                        const currentLeaderDiv = memberListDiv.closest('.leader-account');
+                        const currentLeaderEmail = currentLeaderDiv.dataset.leaderEmail;
+                        memberListDiv.dataset.loaded = 'false';
+                        await refreshMembersList(currentLeaderDiv, currentLeaderEmail, memberListDiv);
+
+                    } catch (error) {
+                        alert(`更新过期时间失败: ${error.message}`);
+                        console.error('更新过期时间失败:', error);
+                        // --- 隐藏加载状态 (错误时) ---
+                        saveButton.textContent = originalSaveText;
+                        saveButton.disabled = false;
+                        if (saveButton.contains(spinner)) {
+                            saveButton.removeChild(spinner);
+                        }
+                        // --- 结束隐藏加载状态 (错误时) ---
+                    }
+                };
+                expiryContainer.appendChild(expiryInput);
+                expiryContainer.appendChild(saveButton);
+                memberItemDiv.appendChild(expiryContainer);
+
+
+                // 右侧：操作按钮 (删除)
+                const actionContainer = document.createElement('span');
+                actionContainer.className = 'member-actions';
+
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '删除';
+                deleteButton.className = 'delete-member-btn';
+                deleteButton.onclick = async (event) => { // 传入 event 参数
+                    event.stopPropagation(); // 阻止点击删除按钮时事件冒泡到 leaderDiv
+                    if (confirm(`确定要删除组员 ${member.member_email} 吗？`)) {
+                        // --- 显示加载状态 ---
+                        deleteButton.disabled = true;
+                        const originalDeleteText = deleteButton.textContent;
+                        deleteButton.textContent = '删除中...';
+                        const spinner = document.createElement('span');
+                        spinner.className = 'spinner';
+                        deleteButton.appendChild(spinner);
+                        // --- 结束显示加载状态 ---
+
+                        let deleteEndpoint = '';
+                        let requestBody = {};
+
+                        if (member.email_id) { // 如果存在 email_id，调用删除已接受成员接口
+                            deleteEndpoint = `${BASE_URL}/api/v1/member/remove`;
+                            requestBody = { email: member.member_email };
+                        } else { // 如果没有 email_id，调用撤销未接受邀请接口
+                            deleteEndpoint = `${BASE_URL}/api/v1/member/revoke_unaccepted`;
+                            requestBody = { email: member.member_email };
+                        }
+
+                        try {
+                            const deleteResponse = await fetch(deleteEndpoint, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(requestBody),
+                            });
+
+                            if (!deleteResponse.ok) {
+                                const errorData = await deleteResponse.json();
+                                throw new Error(`删除失败: ${errorData.detail || deleteResponse.statusText}`);
+                            }
+
+                            alert(`组员 ${member.member_email} 删除成功！`);
+                            // --- 隐藏加载状态 ---
+                            deleteButton.textContent = originalDeleteText;
+                            deleteButton.disabled = false;
+                            if (deleteButton.contains(spinner)) {
+                                deleteButton.removeChild(spinner);
+                            }
+                            // --- 结束隐藏加载状态 ---
+
+                            // 刷新当前组员列表
+                            const currentLeaderDiv = memberListDiv.closest('.leader-account');
+                            const currentLeaderEmail = currentLeaderDiv.dataset.leaderEmail;
+                            memberListDiv.dataset.loaded = 'false';
+                            await refreshMembersList(currentLeaderDiv, currentLeaderEmail, memberListDiv);
+
+                        } catch (error) {
+                            alert(`删除组员失败: ${error.message}`);
+                            console.error('删除组员失败:', error);
+                            // --- 隐藏加载状态 (错误时) ---
+                            deleteButton.textContent = originalDeleteText;
+                            deleteButton.disabled = false;
+                            if (deleteButton.contains(spinner)) {
+                                deleteButton.removeChild(spinner);
+                            }
+                            // --- 结束隐藏加载状态 (错误时) ---
+                        }
+                    }
+                };
+                actionContainer.appendChild(deleteButton);
+                memberItemDiv.appendChild(actionContainer);
+
+                memberListDiv.appendChild(memberItemDiv);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchAccounts);
+    </script>
+</body>
+</html>

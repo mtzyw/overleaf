@@ -1,10 +1,10 @@
 import html, json, asyncio, requests
-import logging # 引入 logging 模块
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-
+import time # 新增：引入 time 模块用于获取当前时间戳
+from fastapi import APIRouter, Depends, HTTPException, Query, Body # 新增：引入 Body
+from sqlalchemy.orm import Session # 新增这一行
 import models, crud, schemas
 from database import SessionLocal
 from overleaf_utils import (
@@ -98,7 +98,7 @@ async def try_invite_with_account(acct: models.Account, req_email: str, expires_
             crud.update_account_tokens(db, acct, new_csrf, new_sess)
             logger.info(f"账号 {acct.email} token 刷新成功。")
             # 尝试发送邀请
-            result = await asyncio.to_thread(send_invite, session, new_csrf, acct.group_id, req_email, expires_iso)
+            result = await asyncio.to_thread(send_invite, session, new_csrf, acct.group_id, req_email, expires_iso) # 修改为 req_email
             return result, acct
         except (requests.exceptions.RequestException, RuntimeError, GroupFullError, InviteAttemptFailedError) as e:
             # Token 刷新或使用旧 token 发送邀请失败，记录并尝试完整登录
@@ -180,10 +180,6 @@ async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
             # 标记该账号为“已尝试且失败”
             # 注意：此处更新 updated_at 确保在下次 crud.get_available_account 时，该账号会排到列表后面
             acct.updated_at = int(datetime.now().timestamp())
-            # 减少 invites_sent 计数，使其不计入总邀请数
-            # 虽然这里理论上成功发起邀请，但是却失败了，所以不增加 invites_sent
-            # if acct.invites_sent > 0: # 避免负数
-            # acct.invites_sent -= 1 # 暂不在这里调整，在 crud.increment_invites 统一处理
             db.add(acct)
             db.commit()
             db.refresh(acct)
@@ -256,4 +252,39 @@ def list_invites(
          .offset((page - 1) * size)
          .limit(size)
          .all()
+    )
+
+# -------- 新增：修改邀请过期时间的接口 --------
+@router.post("/update_expiration", response_model=schemas.UpdateExpirationResponse)
+async def update_invite_expiration(
+    request_data: schemas.InviteUpdateExpirationRequest = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    根据邮箱更新一个邀请记录的过期时间。
+    """
+    # 验证新的过期时间是否有效（例如，不能是过去的时间）
+    if request_data.expires_at <= int(time.time()): #
+        raise HTTPException(
+            status_code=400,
+            detail="新的过期时间必须是未来的时间。"
+        )
+
+    updated_invite = crud.update_invite_expiration_by_email(
+        db,
+        email=request_data.email,
+        new_expires_at=request_data.expires_at
+    )
+
+    if not updated_invite:
+        raise HTTPException(
+            status_code=404,
+            detail=f"未找到邮箱 '{request_data.email}' 的邀请记录，无法更新过期时间。"
+        )
+
+    return schemas.UpdateExpirationResponse(
+        message="Invite expiration time updated successfully.",
+        updated_email=updated_invite.email,
+        new_expires_at=updated_invite.expires_at,
+        invite_id=updated_invite.id
     )

@@ -161,3 +161,40 @@ def clean_expired_invites(db: Session) -> int:
             # 出错下次再试
             continue
     return count
+
+
+def update_invite_expiration_by_email(
+    db: Session,
+    email: str,
+    new_expires_at: int
+) -> Optional[models.Invite]:
+    """
+    根据邮箱更新最新邀请记录的过期时间。
+    如果找到记录并更新成功，返回更新后的 Invite 记录对象；否则返回 None。
+    """
+    # 查找指定邮箱的最新一条邀请记录
+    invite = (
+        db.query(models.Invite)
+        .filter(models.Invite.email == email)
+        .order_by(models.Invite.created_at.desc()) # 查找最新记录
+        .first()
+    )
+
+    if not invite:
+        return None # 未找到对应的邀请记录
+
+    invite.expires_at = new_expires_at
+    invite.cleaned = False # 假设续期后，该邀请不再是已清理状态
+
+    # 根据您的业务逻辑，您可能还需要更新其他字段，例如 `result`。
+    # 如果需要更新 result 字段，可以这样处理（示例）：
+    # from datetime import datetime
+    # updated_time_str = datetime.fromtimestamp(new_expires_at).isoformat()
+    # invite.result = f"{{'status': 'expiration_updated', 'new_expires_at_iso': '{updated_time_str}'}}"
+
+    db.add(invite) # 标记对象为已修改
+    db.commit()    # 提交更改到数据库
+    db.refresh(invite) # 刷新对象以获取最新状态
+
+    return invite
+

@@ -111,3 +111,15 @@ class LeaderGroupMembersResponse(BaseModel):
     total_members_in_db: int # 数据库中该组长关联的组员总数 (无论是否过期或清理)
     active_members: List[GroupMemberInfo] # 未过期的组员列表
     expired_members_count: int # 数据库中已过期且未清理的组员数量
+
+# -------- 新增：更新邀请过期时间相关 --------
+
+class InviteUpdateExpirationRequest(BaseModel):
+    email: EmailStr
+    expires_at: int # Unix 时间戳，秒
+
+class UpdateExpirationResponse(BaseModel):
+    message: str
+    updated_email: EmailStr
+    new_expires_at: int
+    invite_id: Optional[int] = None # 可选：返回更新的邀请记录ID
