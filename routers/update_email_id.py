@@ -88,8 +88,12 @@ async def update_email_ids(
         uid   = u.get("_id")
         if not email or not uid:
             continue
-        # 查询所有该 email 的邀请记录
-        for inv in db.query(models.Invite).filter_by(email=email).all():
+        # **关键修改：增加过滤条件，只更新属于当前组长（acct）的邀请记录**
+        # 确保 inv.account_id 与当前处理的组长账号的 id 匹配
+        for inv in db.query(models.Invite).filter(
+            models.Invite.email == email,
+            models.Invite.account_id == acct.id # <<< 新增此行
+        ).all():
             if inv.email_id != uid:
                 inv.email_id = uid
                 updated += 1

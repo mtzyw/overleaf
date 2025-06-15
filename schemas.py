@@ -98,3 +98,16 @@ class RemoveMemberResponse(BaseModel):
 
 class CleanupResponse(BaseModel):
     cleaned: int   # 本次成功清理的记录数
+
+
+class GroupMemberInfo(BaseModel):
+    member_email: EmailStr
+    expires_at: int # Unix 时间戳
+    email_id: Optional[str] # Overleaf 上的 user id
+# -------- 新增：查询组员信息模型 --------
+class LeaderGroupMembersResponse(BaseModel):
+    leader_email: EmailStr
+    group_id: str
+    total_members_in_db: int # 数据库中该组长关联的组员总数 (无论是否过期或清理)
+    active_members: List[GroupMemberInfo] # 未过期的组员列表
+    expired_members_count: int # 数据库中已过期且未清理的组员数量

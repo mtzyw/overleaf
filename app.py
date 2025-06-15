@@ -80,6 +80,8 @@ from routers.invites import  router as invite_router
 from routers.update_email_id import router as update_email_id_router
 from routers.remove_member   import router as remove_member_router
 from routers.maintenance import router as maintenance_router
+from routers.members_query import router as members_query_router # 新增导入这一行
+
 
 app.include_router(accounts_router,    tags=["accounts"])
 app.include_router(cards_router,       tags=["cards"])
@@ -87,6 +89,7 @@ app.include_router(invite_router,      tags=["invites"])
 app.include_router(update_email_id_router, tags=["members"])
 app.include_router(remove_member_router,   tags=["members"])
 app.include_router(maintenance_router, tags=["maintenance"])
+app.include_router(members_query_router, tags=["members_query"]) # 新增挂载这一行
 
 @app.on_event("shutdown")
 async def on_shutdown():

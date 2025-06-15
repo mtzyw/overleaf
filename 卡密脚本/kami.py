@@ -16,9 +16,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 配置区
 API_URL        = "https://overapi.shayudata.com/api/v1/cards/add"
-BATCH_SIZE     = 20   # 每批上传量
-COUNT_7        = 200   # 要生成的 7 天卡数量
-COUNT_30       = 200    # 要生成的 30 天卡数量
+BATCH_SIZE     = 100   # 每批上传量
+COUNT_7        = 400   # 要生成的 7 天卡数量
+COUNT_30       = 0    # 要生成的 30 天卡数量
 OUT_SUCCESS_7  = "codes_7days_success.txt"
 OUT_SUCCESS_30 = "codes_30days_success.txt"
 MAX_WORKERS    = 5     # 并发线程数
