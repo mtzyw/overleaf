@@ -103,16 +103,23 @@ def update_invite_expiry(
     db: Session,
     invite: models.Invite,
     new_expires_at: int,
-    result: dict
+    result: dict,
+    new_account: models.Account = None
 ) -> models.Invite:
     """
     续期时：更新 expires_at、result、success 并重置 cleaned=False；
+    如果提供了 new_account，则同时更新 account_id（用于组长变更场景）；
     不修改 created_at，保留首次邀请时间。
     """
     invite.expires_at = new_expires_at
     invite.result     = str(result)
     invite.success    = True
     invite.cleaned    = False
+    
+    # 如果提供了新的账号，更新 account_id
+    if new_account:
+        invite.account_id = new_account.id
+    
     db.commit()
     db.refresh(invite)
     return invite

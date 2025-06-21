@@ -223,7 +223,8 @@ async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
           .first()
     )
     if last_invite_record:
-        crud.update_invite_expiry(db, last_invite_record, expires_ts, result)
+        # 传入新的账号信息，确保 account_id 也会更新
+        crud.update_invite_expiry(db, last_invite_record, expires_ts, result, successful_acct)
     else:
         crud.create_invite_record(db, successful_acct, req.email, expires_ts, True, result, card)
 

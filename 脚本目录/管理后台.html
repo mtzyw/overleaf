@@ -35,6 +35,36 @@
             font-weight: 700;
         }
 
+        /* 顶部标题和按钮区域 */
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .header-controls h1 {
+            margin-bottom: 0; /* 移除 h1 默认的底部外边距 */
+        }
+        /* 更新所有组员按钮样式 */
+        .update-all-members-btn {
+            background-color: #3498db; /* 蓝色 */
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+        }
+        .update-all-members-btn:hover {
+            background-color: #2980b9;
+        }
+        .update-all-members-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+
         /* 组长账号卡片样式 */
         .leader-account {
             background-color: #ffffff;
@@ -43,31 +73,93 @@
             margin-bottom: 15px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-            cursor: pointer;
+            cursor: default; /* 修改：默认鼠标样式，因为不再点击整个卡片折叠/展开 */
             transition: all 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-direction: row;
-            flex-wrap: wrap;
+            display: flex; /* 使用 flex 布局 */
+            flex-wrap: wrap; /* 允许换行 */
+            justify-content: space-between; /* 主内容和统计/按钮组之间保持空间 */
+            align-items: center; /* 垂直居中对齐 */
         }
         .leader-account:hover {
             transform: translateY(-3px);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
             background-color: #e8f0fe;
         }
+
+        /* 组长主要信息区（邮箱、密码、组ID） */
+        .leader-account-main-content {
+            display: flex;
+            flex-direction: column; /* 邮箱、密码、组ID 垂直堆叠 */
+            flex-grow: 1; /* 尽可能占据可用空间 */
+            min-width: 300px; /* 最小宽度，防止内容挤压 */
+        }
         .leader-account strong {
             color: #34495e;
             font-size: 1.1em;
         }
-        .leader-account > span {
+        /* 邮箱和密码显示样式 */
+        .leader-email-display,
+        .leader-password-display {
+            color: #666;
+            font-size: 0.9em;
+            cursor: copy;
+            text-decoration: underline dotted;
+        }
+        .leader-email-display:hover,
+        .leader-password-display:hover {
+            color: #2980b9;
+        }
+
+        /* 组长统计和操作按钮区 */
+        .leader-account-stats-and-controls {
+            display: flex;
+            flex-direction: column; /* 统计信息和按钮垂直堆叠 */
+            align-items: flex-end; /* 靠右对齐 */
+            gap: 5px; /* 统计和按钮之间的间距 */
+            flex-shrink: 0; /* 不收缩 */
+        }
+        .leader-account-stats { /* 邀请数统计 */
             color: #7f8c8d;
             font-size: 0.9em;
-            flex-shrink: 0;
-            margin-right: 15px;
+            text-align: right; /* 右对齐 */
+            white-space: nowrap; /* 不换行 */
         }
-        .leader-account > span:last-of-type {
-            margin-right: 0;
+        /* 更新组员按钮样式 */
+        .update-members-btn {
+            background-color: #f39c12; /* 橙色 */
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: background-color 0.3s ease;
+        }
+        .update-members-btn:hover {
+            background-color: #e67e22;
+        }
+        /* 新增：展开组员按钮样式 */
+        .expand-members-btn {
+            background-color: #6c757d; /* 灰色 */
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: background-color 0.3s ease;
+        }
+        .expand-members-btn:hover {
+            background-color: #5a6268;
+        }
+        /* 按钮禁用时的样式 */
+        .save-expires-btn:disabled,
+        .delete-member-btn:disabled,
+        .update-members-btn:disabled,
+        .update-all-members-btn:disabled,
+        .expand-members-btn:disabled { /* 包含新增的展开按钮 */
+            opacity: 0.7;
+            cursor: not-allowed;
         }
 
 
@@ -99,7 +191,7 @@
             border-bottom: 1px dashed #e0e0e0;
             font-size: 0.9em;
             color: #555;
-            gap: 10px; /* 调整间距 */
+            gap: 10px;
         }
         .member-item:last-child {
             border-bottom: none;
@@ -112,7 +204,7 @@
         .member-item span {
             flex-shrink: 0;
         }
-        .member-item .member-info { /* 包含邮箱和ID的span */
+        .member-item .member-info {
             flex-grow: 1;
             min-width: 180px;
         }
@@ -122,15 +214,15 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            flex-grow: 1; /* 占据可用空间 */
-            min-width: 260px; /* 确保有足够空间显示日期时间输入框 */
+            flex-grow: 1;
+            min-width: 260px;
         }
         .member-expires-input {
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 0.9em;
-            flex-grow: 1; /* 输入框在容器内尽可能展开 */
+            flex-grow: 1;
         }
         .save-expires-btn {
             background-color: #28a745;
@@ -151,7 +243,7 @@
         .member-actions {
             flex-shrink: 0;
             display: flex;
-            gap: 5px; /* 如果有多个按钮，增加间距 */
+            gap: 5px;
         }
         /* 删除按钮样式 */
         .delete-member-btn {
@@ -188,21 +280,20 @@
             padding: 20px;
         }
 
-        /* 新增：Spinner 样式 */
+        /* Spinner 样式 */
         .spinner {
-            border: 2px solid rgba(255, 255, 255, 0.3); /* 边框颜色，半透明 */
-            border-radius: 50%; /* 圆形 */
-            border-top: 2px solid #fff; /* 顶部边框，构成旋转效果的主体 */
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 2px solid #fff;
             width: 12px;
             height: 12px;
-            -webkit-animation: spin 1s linear infinite; /* Webkit 浏览器动画 */
-            animation: spin 1s linear infinite; /* 标准动画 */
-            display: inline-block; /* 行内块元素 */
-            vertical-align: middle; /* 垂直居中对齐 */
-            margin-left: 5px; /* 与文本的间距 */
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 5px;
         }
 
-        /* 定义旋转动画 */
         @-webkit-keyframes spin {
             0% { -webkit-transform: rotate(0deg); }
             100% { -webkit-transform: rotate(360deg); }
@@ -212,18 +303,15 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* 按钮禁用时的样式 */
-        .save-expires-btn:disabled,
-        .delete-member-btn:disabled {
-            opacity: 0.7; /* 降低透明度 */
-            cursor: not-allowed; /* 鼠标样式为禁止 */
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Overleaf Inviter 管理后台</h1>
+        <div class="header-controls">
+            <h1>Overleaf Inviter 管理后台</h1>
+            <button id="update-all-members-btn" class="update-all-members-btn">更新所有组员</button>
+        </div>
+
         <div id="accounts-container">
             <p class="loading">正在加载组长账号...</p>
         </div>
@@ -233,7 +321,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
 
     <script>
-        const BASE_URL = 'http://127.0.0.1:8000'; // 您的后端服务地址
+        const BASE_URL = 'http://43.134.34.9:8000'; // 您的后端服务地址
 
         async function fetchAccounts() {
             try {
@@ -242,6 +330,7 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const accounts = await response.json();
+
                 displayAccounts(accounts);
             } catch (error) {
                 console.error("获取组长账号失败:", error);
@@ -249,6 +338,7 @@
             }
         }
 
+        // displayAccounts 现在接收包含密码的 account 对象
         function displayAccounts(accounts) {
             const container = document.getElementById('accounts-container');
             container.innerHTML = '';
@@ -262,22 +352,223 @@
                 const leaderDiv = document.createElement('div');
                 leaderDiv.className = 'leader-account';
                 leaderDiv.dataset.leaderEmail = account.email;
-                leaderDiv.innerHTML = `
-                    <span><strong>${account.email}</strong> (组ID: ${account.group_id})</span>
-                    <span>最大邀请数: ${account.max_invites} | 已邀请: ${account.invites_sent}</span>
+
+                // --- 修改：组长账号内部布局，添加更新组员按钮和展开组员按钮 ---
+                const leaderMainContent = document.createElement('div');
+                leaderMainContent.className = 'leader-account-main-content';
+                leaderMainContent.innerHTML = `
+                    <span class="leader-email-display" title="点击复制">
+                        <strong>邮箱:</strong> <span class="email-value">${account.email}</span>
+                    </span>
+                    <span class="leader-password-display" title="点击复制">
+                        <strong>密码:</strong> <span class="password-value">${account.password || 'N/A'}</span>
+                    </span>
+                    <span><strong>组ID:</strong> ${account.group_id}</span>
                 `;
+                // --- 阻止点击 leaderMainContent 区域时事件冒泡到 leaderDiv ---
+                leaderMainContent.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+                leaderDiv.appendChild(leaderMainContent);
+
+                const leaderStatsAndControls = document.createElement('div');
+                leaderStatsAndControls.className = 'leader-account-stats-and-controls';
+
+                const statsSpan = document.createElement('span');
+                statsSpan.className = 'leader-account-stats';
+                statsSpan.innerHTML = `最大邀请数: ${account.max_invites} | 已邀请: ${account.invites_sent}`;
+                leaderStatsAndControls.appendChild(statsSpan);
+
+                const updateMembersButton = document.createElement('button');
+                updateMembersButton.textContent = '更新组员';
+                updateMembersButton.className = 'update-members-btn';
+                // 阻止点击 updateMembersButton 时事件冒泡到 leaderDiv
+                updateMembersButton.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    // --- 显示加载状态 ---
+                    updateMembersButton.disabled = true;
+                    const originalText = updateMembersButton.textContent;
+                    updateMembersButton.textContent = '更新中...';
+                    const spinner = document.createElement('span');
+                    spinner.className = 'spinner';
+                    updateMembersButton.appendChild(spinner);
+                    // --- 结束显示加载状态 ---
+
+                    try {
+                        const updateResponse = await fetch(`${BASE_URL}/api/v1/email_ids/update`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ leader_email: account.email }),
+                        });
+                        if (!updateResponse.ok) {
+                            const errorData = await updateResponse.json();
+                            throw new Error(`更新失败: ${errorData.detail || updateResponse.statusText}`);
+                        }
+                        const successResponse = await updateResponse.json();
+                        alert(`组长 ${account.email} 的组员信息更新成功！\n总成员: ${successResponse.total_members}, 已更新邀请: ${successResponse.updated_invites}`);
+
+                        // 刷新当前组长的组员列表
+                        const memberListDiv = leaderDiv.querySelector('.member-list');
+                        memberListDiv.dataset.loaded = 'false';
+                        await refreshMembersList(leaderDiv, account.email, memberListDiv);
+
+                    } catch (error) {
+                        alert(`更新组员失败: ${error.message}`);
+                        console.error('更新组员失败:', error);
+                    } finally {
+                        // --- 隐藏加载状态 ---
+                        updateMembersButton.textContent = originalText;
+                        updateMembersButton.disabled = false;
+                        if (updateMembersButton.contains(spinner)) {
+                            updateMembersButton.removeChild(spinner);
+                        }
+                        // --- 结束隐藏加载状态 ---
+                    }
+                });
+                leaderStatsAndControls.appendChild(updateMembersButton);
+
+                // --- 新增：展开组员按钮 ---
+                const expandMembersButton = document.createElement('button');
+                expandMembersButton.textContent = '展开组员';
+                expandMembersButton.className = 'expand-members-btn';
+                expandMembersButton.addEventListener('click', () => {
+                    // 专门用于触发折叠/展开，不再阻止冒泡因为这里是唯一触发点
+                    toggleMembers(leaderDiv, account.email);
+                });
+                leaderStatsAndControls.appendChild(expandMembersButton);
+
+
+                // --- 阻止点击 leaderStatsAndControls 区域时事件冒泡到 leaderDiv ---
+                leaderStatsAndControls.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+                leaderDiv.appendChild(leaderStatsAndControls);
+                // --- 结束修改 ---
+
+
+                // 为邮箱添加点击复制功能 (无弹窗，有视觉反馈)
+                const emailValueSpan = leaderMainContent.querySelector('.email-value');
+                if (emailValueSpan && account.email) {
+                    emailValueSpan.onclick = async (event) => {
+                        event.stopPropagation();
+                        try {
+                            await navigator.clipboard.writeText(account.email);
+                            console.log('邮箱已复制到剪贴板！');
+                            const originalColor = emailValueSpan.style.color;
+                            emailValueSpan.style.color = '#28a745';
+                            setTimeout(() => {
+                                emailValueSpan.style.color = originalColor;
+                            }, 1000);
+                        } catch (err) {
+                            console.error('复制邮箱失败:', err);
+                            alert('复制邮箱失败，请手动复制。');
+                        }
+                    };
+                }
+
+                // 为密码添加点击复制功能 (无弹窗，有视觉反馈)
+                const passwordValueSpan = leaderMainContent.querySelector('.password-value');
+                if (passwordValueSpan && account.password && account.password !== 'N/A') {
+                    passwordValueSpan.onclick = async (event) => {
+                        event.stopPropagation();
+                        try {
+                            await navigator.clipboard.writeText(account.password);
+                            console.log('密码已复制到剪贴板！');
+                            const originalColor = passwordValueSpan.style.color;
+                            passwordValueSpan.style.color = '#28a745';
+                            setTimeout(() => {
+                                passwordValueSpan.style.color = originalColor;
+                            }, 1000);
+                        } catch (err) {
+                            console.error('复制密码失败:', err);
+                            alert('复制密码失败，请手动复制。');
+                        }
+                    };
+                }
+
 
                 const memberListDiv = document.createElement('div');
                 memberListDiv.className = 'member-list';
                 memberListDiv.style.display = 'none';
-                leaderDiv.appendChild(memberListDiv);
+                leaderDiv.appendChild(memberListDiv); // 仍然是leaderDiv的子元素
 
-                leaderDiv.addEventListener('click', () => {
-                    toggleMembers(leaderDiv, account.email);
-                });
+
+                // --- 移除 leaderDiv 本身的点击监听器，现在由“展开组员”按钮控制 ---
+                // leaderDiv.addEventListener('click', () => {
+                //     toggleMembers(leaderDiv, account.email);
+                // });
 
                 container.appendChild(leaderDiv);
             });
+
+            // --- 更新所有组员按钮的事件处理 ---
+            const updateAllMembersBtn = document.getElementById('update-all-members-btn');
+            updateAllMembersBtn.onclick = async () => {
+                // --- 显示加载状态 ---
+                updateAllMembersBtn.disabled = true;
+                const originalText = updateAllMembersBtn.textContent;
+                updateAllMembersBtn.textContent = '更新中...';
+                const spinner = document.createElement('span');
+                spinner.className = 'spinner';
+                updateAllMembersBtn.appendChild(spinner);
+                // --- 结束显示加载状态 ---
+
+                const allAccounts = await fetch(`${BASE_URL}/api/v1/accounts?page=1&size=100`).then(res => res.json());
+                const updatePromises = allAccounts.map(account => {
+                    return fetch(`${BASE_URL}/api/v1/email_ids/update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ leader_email: account.email }),
+                    }).then(response => {
+                        if (!response.ok) {
+                            return response.json().then(errorData => {
+                                console.error(`更新组长 ${account.email} 失败: ${errorData.detail || response.statusText}`);
+                                return { success: false, email: account.email, error: errorData.detail || response.statusText };
+                            }).catch(() => {
+                                console.error(`更新组长 ${account.email} 失败: HTTP ${response.status}`);
+                                return { success: false, email: account.email, error: `HTTP ${response.status}` };
+                            });
+                        }
+                        return response.json().then(data => ({ success: true, email: account.email, data }));
+                    }).catch(error => {
+                        console.error(`更新组长 ${account.email} 网络错误: ${error.message}`);
+                        return { success: false, email: account.email, error: error.message };
+                    });
+                });
+
+                const results = await Promise.all(updatePromises);
+                let successCount = 0;
+                let failureDetails = [];
+
+                results.forEach(result => {
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failureDetails.push(`- ${result.email}: ${result.error}`);
+                    }
+                });
+
+                if (failureDetails.length === 0) {
+                    alert(`所有组长账号的组员信息已成功更新！\n共更新 ${successCount} 个组长。`);
+                } else {
+                    alert(`部分组长账号的组员信息更新失败！\n成功: ${successCount} 个\n失败详情:\n${failureDetails.join('\n')}`);
+                }
+
+                // --- 隐藏加载状态 ---
+                updateAllMembersBtn.textContent = originalText;
+                updateAllMembersBtn.disabled = false;
+                if (updateAllMembersBtn.contains(spinner)) {
+                    updateAllMembersBtn.removeChild(spinner);
+                }
+                // --- 结束隐藏加载状态 ---
+
+                // 更新所有组员后，重新获取并显示所有组长和其组员的状态
+                fetchAccounts();
+            };
         }
 
         // --- 刷新组员列表内容的函数 ---

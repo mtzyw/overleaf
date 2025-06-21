@@ -21,6 +21,7 @@ class AccountCreate(BaseModel):
 class AccountOut(BaseModel):
     id: int
     email: EmailStr
+    password: str  # 新增：添加密码字段
     group_id: str
     invites_sent: int
     max_invites: int
