@@ -1,0 +1,20 @@
+# Overleaf邀请管理系统定时维护 - Crontab配置
+# 将以下内容添加到你的crontab中 (crontab -e)
+
+# 每日凌晨2点执行完整维护（不生成日志文件）
+0 2 * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本/脚本目录 && python3 auto_maintenance.py full > /dev/null 2>&1
+
+# 每小时05分更新email_id（不生成日志文件）
+5 * * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本/脚本目录 && python3 auto_maintenance.py update-emails > /dev/null 2>&1
+
+# 每2小时10分清理过期邀请（不生成日志文件）
+10 */2 * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本/脚本目录 && python3 auto_maintenance.py cleanup-expired > /dev/null 2>&1
+
+# 每30分钟进行系统健康检查（不生成日志文件）
+*/30 * * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本/脚本目录 && python3 auto_maintenance.py report > /dev/null 2>&1
+
+# 使用方法：
+# 1. 执行命令：crontab -e
+# 2. 复制上面的配置到crontab文件中
+# 3. 保存退出（vim: 按ESC，输入:wq，按回车）
+# 4. 查看定时任务：crontab -l

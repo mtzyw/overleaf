@@ -1,0 +1,38 @@
+# Overleaf邀请管理系统 - 自动维护任务配置
+# 使用说明：
+# 1. 编辑crontab: crontab -e
+# 2. 将以下内容添加到crontab文件中
+# 3. 保存并退出，系统将自动执行这些任务
+
+# 项目根目录 (请根据实际情况修改)
+# PROJECT_DIR=/Users/longshu/Desktop/未命名文件夹/newpy_副本
+
+# 每30分钟执行一次 - 清理过期成员
+*/30 * * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本 && /usr/bin/python3 自动维护目录/清理过期成员.py >> /tmp/overleaf_cleanup.log 2>&1
+
+# 每1小时执行一次 - 更新所有邮箱ID
+0 * * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本 && /usr/bin/python3 自动维护目录/更新邮箱ID.py >> /tmp/overleaf_email_update.log 2>&1
+
+# 每天凌晨2点执行一次 - 系统整体维护
+0 2 * * * cd /Users/longshu/Desktop/未命名文件夹/newpy_副本 && /usr/bin/python3 自动维护目录/系统整体维护.py >> /tmp/overleaf_maintenance.log 2>&1
+
+# 可选：每周日凌晨3点执行历史垃圾清理（需要手动确认，建议定期手动执行）
+# 0 3 * * 0 cd /Users/longshu/Desktop/未命名文件夹/newpy_副本 && /usr/bin/python3 脚本目录/cleanup_history_records.py --force >> /tmp/overleaf_cleanup_history.log 2>&1
+
+# 定时任务说明：
+# - 分钟 小时 日 月 星期 命令
+# - */30 表示每30分钟
+# - 0 * 表示每小时的0分钟
+# - 0 2 * * * 表示每天凌晨2点
+# - 日志文件保存在 /tmp/ 目录，可根据需要调整路径
+
+# 安装步骤：
+# 1. 运行: crontab -e
+# 2. 复制上述定时任务配置（去掉注释的#）
+# 3. 保存退出 (vi编辑器: 按ESC后输入:wq)
+# 4. 验证: crontab -l
+
+# 查看日志：
+# tail -f /tmp/overleaf_cleanup.log      # 清理日志
+# tail -f /tmp/overleaf_email_update.log # 邮箱更新日志
+# tail -f /tmp/overleaf_maintenance.log  # 系统维护日志

@@ -149,7 +149,19 @@ class OverleafSyncer:
                     "status": member["status"]
                 }
             
-            # 4. 分析需要修复的记录
+            # 4. 检查数据库外用户（只在Overleaf中存在）
+            db_emails = {invite.email for invite in db_invites}
+            database_external_users = []
+            
+            for email, ol_data in overleaf_status.items():
+                if email not in db_emails:
+                    database_external_users.append({
+                        "email": email,
+                        "user_id": ol_data["user_id"],
+                        "status": ol_data["status"]
+                    })
+            
+            # 5. 分析需要修复的记录
             updates = []
             for invite in db_invites:
                 current_status = {
@@ -190,34 +202,75 @@ class OverleafSyncer:
                             "reason": "Overleaf中不存在，应标记为已清理"
                         })
             
-            # 5. 显示需要的修复操作
+            # 6. 显示数据库外用户
+            if database_external_users:
+                print(f"\n发现数据库外用户: {len(database_external_users)}个")
+                for user in database_external_users:
+                    print(f"  {user['email']} (user_id: {user['user_id']}, status: {user['status']})")
+            
+            # 7. 显示需要的修复操作
             print(f"\n需要修复的记录数: {len(updates)}")
             for update in updates:
                 print(f"  邀请ID {update['invite_id']}: {update['action']} - {update['reason']}")
             
-            # 6. 执行修复（如果不是dry_run）
-            if not dry_run and updates:
-                print(f"\n执行修复...")
-                for update in updates:
-                    invite = self.db.get(models.Invite, update["invite_id"])
-                    if update["action"] == "update_email_id":
-                        invite.email_id = update["new_email_id"]
-                    elif update["action"] == "unmark_cleaned":
-                        invite.cleaned = False
-                    elif update["action"] == "mark_cleaned":
-                        invite.cleaned = True
+            # 8. 执行修复（如果不是dry_run）
+            if not dry_run:
+                if updates:
+                    print(f"\n执行修复...")
+                    for update in updates:
+                        invite = self.db.get(models.Invite, update["invite_id"])
+                        if update["action"] == "update_email_id":
+                            invite.email_id = update["new_email_id"]
+                        elif update["action"] == "unmark_cleaned":
+                            invite.cleaned = False
+                        elif update["action"] == "mark_cleaned":
+                            invite.cleaned = True
                 
-                # 7. 修正账户计数（基于数据库重新计算）
+                # 创建数据库外用户记录
+                if database_external_users:
+                    print(f"\n创建数据库外用户记录...")
+                    import time, json
+                    created_count = 0
+                    for user in database_external_users:
+                        # 创建更完整的result信息
+                        result_info = {
+                            "source": "manual_sync_from_overleaf",
+                            "sync_date": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "account_manager": account.email,
+                            "overleaf_status": user['status'],
+                            "overleaf_user_id": user['user_id'],
+                            "note": "手动添加的用户，需要联系客户确认过期时间和卡密信息",
+                            "action_required": "请设置过期时间并关联正确的卡密",
+                            "warning": "设置过期时间后，到期会被正常清理删除"
+                        }
+                        
+                        new_invite = models.Invite(
+                            account_id=account.id,
+                            card_id=None,  # 手动添加的用户没有卡密，需要后续关联
+                            email=user['email'],
+                            email_id=user['user_id'] if user['status'] == 'accepted' else None,
+                            expires_at=None,  # 关键：不设置过期时间，标记为手动添加
+                            success=True,  # 已经在Overleaf中存在
+                            result=json.dumps(result_info, ensure_ascii=False),
+                            created_at=int(time.time()),
+                            cleaned=False
+                        )
+                        self.db.add(new_invite)
+                        created_count += 1
+                        print(f"  已创建: {user['email']} (expires_at=NULL, 需要设置过期时间)")
+                    
+                    print(f"✓ 已创建 {created_count} 个数据库外用户记录")
+                
+                # 9. 修正账户计数（基于数据库重新计算）
                 manager = InviteStatusManager()
                 account.invites_sent = manager.calculate_invites_sent(self.db, account)
                 self.db.commit()
-                print(f"✓ 账户计数已修正: {overleaf_count}")
-            elif not dry_run:
-                # 只修正计数（基于数据库重新计算）
-                manager = InviteStatusManager()
-                account.invites_sent = manager.calculate_invites_sent(self.db, account)
-                self.db.commit()
-                print(f"✓ 账户计数已修正: {overleaf_count}")
+                print(f"✓ 账户计数已修正: {account.invites_sent}")
+            else:
+                # dry_run模式，只显示预期结果
+                if database_external_users:
+                    print(f"\n[DRY-RUN] 将创建 {len(database_external_users)} 个数据库外用户记录")
+                print(f"\n[DRY-RUN] 使用 --apply 参数来实际执行修复")
             
             return {
                 "account_email": account.email,
