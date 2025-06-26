@@ -255,10 +255,11 @@ async def cleanup_expired_members(
     
     now_ts = int(time.time())
     
-    # 查找所有过期且未清理的邀请记录
+    # 查找所有过期且未清理的邀请记录（排除手动添加的用户）
     expired_invites = (
         db.query(models.Invite)
         .filter(
+            models.Invite.expires_at.isnot(None),
             models.Invite.expires_at < now_ts,
             models.Invite.cleaned.is_(False)
         )

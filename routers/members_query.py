@@ -58,14 +58,15 @@ def get_leader_group_members(
     for invite in all_invites:
         total_members_in_db += 1
         # 检查是否过期且未清理
-        if invite.expires_at >= current_timestamp and not invite.cleaned:
+        # expires_at=None 表示手动添加的用户，视为活跃用户
+        if not invite.cleaned and (invite.expires_at is None or invite.expires_at >= current_timestamp):
             active_members_list.append(schemas.GroupMemberInfo(
                 member_email=invite.email,
                 expires_at=invite.expires_at,
                 email_id=invite.email_id
             ))
-        elif invite.expires_at < current_timestamp and not invite.cleaned:
-            # 统计已过期但未清理的成员
+        elif invite.expires_at is not None and invite.expires_at < current_timestamp and not invite.cleaned:
+            # 统计已过期但未清理的成员（排除手动添加的用户）
             expired_members_count += 1
 
     logger.info(f"查询组长 '{leader_email}' 的组员信息完成。总成员数: {total_members_in_db}, 活跃成员数: {len(active_members_list)}, 已过期未清理成员数: {expired_members_count}")
