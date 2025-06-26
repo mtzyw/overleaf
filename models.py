@@ -41,7 +41,7 @@ class Invite(Base):
     card_id     = Column(Integer, ForeignKey("cards.id"), nullable=True)
     email       = Column(String, nullable=False)
     email_id    = Column(String, nullable=True)   # 成员在 Overleaf 上的 user id
-    expires_at  = Column(Integer, nullable=False) # Unix 时间戳
+    expires_at  = Column(Integer, nullable=True) # Unix 时间戳，NULL表示手动添加的用户
     success     = Column(Boolean, nullable=False)
     result      = Column(String, nullable=False)
     created_at  = Column(Integer, nullable=False) # Unix 时间戳

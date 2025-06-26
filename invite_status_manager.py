@@ -37,7 +37,7 @@ class InviteStatusManager:
             return InviteStatus.PROCESSED
         elif invite.email_id:
             return InviteStatus.ACCEPTED
-        elif invite.expires_at < int(time.time()):
+        elif invite.expires_at is not None and invite.expires_at < int(time.time()):
             return InviteStatus.EXPIRED
         else:
             return InviteStatus.PENDING
@@ -105,7 +105,7 @@ class InviteStatusManager:
             if invite.email_id:
                 active_count += 1
             # 未接受但未过期的邀请（占用邀请名额）
-            elif invite.expires_at > now_ts:
+            elif invite.expires_at is None or invite.expires_at > now_ts:
                 active_count += 1
         
         return active_count
@@ -192,10 +192,11 @@ class InviteStatusManager:
         """
         now_ts = int(time.time())
         
-        # 查找过期且未处理的邀请
+        # 查找过期且未处理的邀请（排除手动添加的用户）
         expired_invites = (
             db.query(models.Invite)
             .filter(
+                models.Invite.expires_at.isnot(None),
                 models.Invite.expires_at < now_ts,
                 models.Invite.cleaned.is_(False)
             )
