@@ -68,7 +68,7 @@ class InviteRecord(BaseModel):
     card_id: Optional[int]
     email: EmailStr
     email_id: Optional[str]
-    expires_at: int
+    expires_at: Optional[int]  # Unix 时间戳，NULL表示手动添加的用户
     success: bool
     result: str
     created_at: int
@@ -104,7 +104,7 @@ class CleanupResponse(BaseModel):
 
 class GroupMemberInfo(BaseModel):
     member_email: EmailStr
-    expires_at: int # Unix 时间戳
+    expires_at: Optional[int] # Unix 时间戳，NULL表示手动添加的用户
     email_id: Optional[str] # Overleaf 上的 user id
 # -------- 新增：查询组员信息模型 --------
 class LeaderGroupMembersResponse(BaseModel):
