@@ -98,7 +98,8 @@ class RemoveMemberResponse(BaseModel):
     detail: str
 
 class CleanupResponse(BaseModel):
-    cleaned: int   # 本次成功清理的记录数
+    cleaned: int  # 兼容旧格式：总清理数量
+    stats: Optional[Dict[str, int]] = None  # 详细统计信息
 
 
 class GroupMemberInfo(BaseModel):

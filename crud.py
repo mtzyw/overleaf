@@ -3,6 +3,7 @@ import requests
 from typing import Optional
 from sqlalchemy.orm import Session
 import models
+from invite_status_manager import InviteStatusManager
 
 def create_account(
     db: Session,
@@ -40,12 +41,28 @@ def get_card(db: Session, code: str) -> Optional[models.Card]:
     )
 
 def get_available_account(db: Session) -> Optional[models.Account]:
-    return (
+    """
+    获取可用的账户，使用实时计算的邀请数量
+    """
+    accounts = (
         db.query(models.Account)
-          .filter(models.Account.invites_sent < models.Account.max_invites)
-          .order_by(models.Account.updated_at.asc())
-          .first()
+        .order_by(models.Account.updated_at.asc())
+        .all()
     )
+    
+    for account in accounts:
+        # 使用实时计算的邀请数量
+        real_invites_count = InviteStatusManager.calculate_invites_sent(db, account)
+        if real_invites_count < account.max_invites:
+            # 如果缓存的计数不准确，同步一下
+            if account.invites_sent != real_invites_count:
+                account.invites_sent = real_invites_count
+                account.updated_at = int(time.time())
+                db.commit()
+                db.refresh(account)
+            return account
+    
+    return None
 
 def update_account_tokens(
     db: Session,
@@ -61,8 +78,13 @@ def update_account_tokens(
     return account
 
 def increment_invites(db: Session, account: models.Account) -> models.Account:
-    account.invites_sent += 1
-    account.updated_at   = int(time.time())
+    """
+    增加邀请计数，使用实时同步机制
+    """
+    # 不再简单+1，而是重新计算
+    real_count = InviteStatusManager.calculate_invites_sent(db, account)
+    account.invites_sent = real_count
+    account.updated_at = int(time.time())
     db.commit()
     db.refresh(account)
     return account
@@ -141,33 +163,9 @@ def delete_card(db: Session, code: str) -> bool:
 
 def clean_expired_invites(db: Session) -> int:
     """
-    查找所有 expires_at < now 且 cleaned=False 的 Invite，
-    调用删除接口后标记 cleaned=True。
-    返回成功清理的条数。
+    DEPRECATED: 使用 invite_status_manager.batch_cleanup_expired() 替代
     """
-    now_ts = int(time.time())
-    expired = (
-        db.query(models.Invite)
-          .filter(models.Invite.expires_at < now_ts,
-                  models.Invite.cleaned.is_(False))
-          .all()
-    )
-    count = 0
-    for inv in expired:
-        try:
-            resp = requests.post(
-                "https://overapi.shayudata.com/api/v1/member/remove",
-                json={"email": inv.email},
-                timeout=10
-            )
-            if resp.status_code in (200, 204):
-                inv.cleaned = True
-                db.commit()
-                count += 1
-        except Exception:
-            # 出错下次再试
-            continue
-    return count
+    return InviteStatusManager.batch_cleanup_expired(db, limit=100)["total_found"]
 
 
 def update_invite_expiration_by_email(
