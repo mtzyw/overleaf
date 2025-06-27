@@ -215,18 +215,55 @@ async def invite(req: schemas.InviteRequest, db: Session = Depends(get_db)):
     crud.increment_invites(db, successful_acct)
     crud.mark_card_used(db, card)
 
-    # 检查是否存在针对该邮箱的旧邀请记录，如果有则更新，否则创建新记录
-    last_invite_record = (
+    # 检查跨群组重复用户问题：先查找该邮箱在当前账户的记录
+    current_account_record = (
         db.query(models.Invite)
-          .filter(models.Invite.email == req.email)
+          .filter(
+              models.Invite.email == req.email,
+              models.Invite.account_id == successful_acct.id
+          )
           .order_by(models.Invite.created_at.desc())
           .first()
     )
-    if last_invite_record:
-        # 传入新的账号信息，确保 account_id 也会更新
-        crud.update_invite_expiry(db, last_invite_record, expires_ts, result, successful_acct)
+    
+    # 检查该邮箱是否存在于其他账户中（跨群组检查）
+    other_account_records = (
+        db.query(models.Invite)
+          .filter(
+              models.Invite.email == req.email,
+              models.Invite.account_id != successful_acct.id,
+              models.Invite.cleaned.is_(False)  # 只检查未清理的记录
+          )
+          .all()
+    )
+    
+    # 如果存在其他群组的活跃记录，记录警告但继续处理
+    if other_account_records:
+        other_accounts = []
+        for record in other_account_records:
+            other_acct = db.get(models.Account, record.account_id)
+            other_accounts.append(other_acct.email)
+        
+        logger.warning(f"⚠️  用户 {req.email} 已存在于其他群组: {', '.join(other_accounts)}")
+        logger.warning(f"   当前邀请将在新群组 {successful_acct.email} 中创建记录")
+        
+        # 在result中记录这个重要信息
+        result["cross_group_warning"] = {
+            "message": f"用户已存在于其他群组: {', '.join(other_accounts)}",
+            "existing_groups": other_accounts,
+            "current_group": successful_acct.email,
+            "action": "created_new_record_in_current_group"
+        }
+    
+    # 根据当前账户是否有记录决定操作
+    if current_account_record:
+        # 更新当前账户的记录
+        crud.update_invite_expiry(db, current_account_record, expires_ts, result, successful_acct)
+        logger.info(f"更新了 {req.email} 在账户 {successful_acct.email} 中的记录")
     else:
+        # 在当前账户创建新记录（即使用户在其他群组中存在）
         crud.create_invite_record(db, successful_acct, req.email, expires_ts, True, result, card)
+        logger.info(f"为 {req.email} 在账户 {successful_acct.email} 中创建了新记录")
 
     logger.info(f"成功邀请 {req.email} 使用账号 {successful_acct.email}。")
 

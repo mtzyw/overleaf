@@ -44,13 +44,36 @@ async def remove_member(
     通过 email_id 从 Overleaf 组中移除已接受邀请的成员。
     使用新的状态管理和事务处理逻辑。
     """
-    # 1. 查找最新的可删除邀请记录
+    # 1. 查找最新的可删除邀请记录（只查找未清理的活跃记录）
     invite = (
         db.query(models.Invite)
-        .filter(models.Invite.email == body.email)
+        .filter(
+            models.Invite.email == body.email,
+            models.Invite.cleaned.is_(False)  # 只查找未清理的记录
+        )
         .order_by(models.Invite.created_at.desc())
         .first()
     )
+    
+    # 检查是否存在跨群组的重复用户
+    all_active_records = (
+        db.query(models.Invite)
+        .filter(
+            models.Invite.email == body.email,
+            models.Invite.cleaned.is_(False)
+        )
+        .all()
+    )
+    
+    if len(all_active_records) > 1:
+        # 如果存在多个活跃记录，记录警告
+        account_emails = []
+        for record in all_active_records:
+            acct = db.get(models.Account, record.account_id)
+            account_emails.append(acct.email)
+        
+        logger.warning(f"⚠️  用户 {body.email} 存在于多个群组中: {', '.join(account_emails)}")
+        logger.warning(f"   将删除最新记录，其他群组中的记录需要手动处理")
     
     if not invite:
         raise HTTPException(status_code=404, detail="未找到邀请记录")
