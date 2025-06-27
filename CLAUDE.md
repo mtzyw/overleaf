@@ -51,6 +51,23 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
+### 运行测试
+```bash
+# API测试
+python test_overleaf_api.py
+
+# 网络连接测试
+python test.py
+```
+
+### 代码质量工具
+```bash
+# 注意：项目当前未配置linting工具，建议添加
+# pip install black flake8 mypy
+# black *.py routers/*.py  # 代码格式化
+# flake8 *.py routers/*.py  # 代码检查
+```
+
 ### 数据一致性检查和修复
 ```bash
 # 验证数据一致性
@@ -71,6 +88,15 @@ python 脚本目录/fix_data_consistency.py report
 ### 维护脚本（脚本目录/）
 - `remove_expired_members.py`: 清理过期成员
 - `update_all_member_email_id.py`: 批量更新成员email_id
+- `auto_maintenance.py`: 自动维护任务
+- `manual_sync.py`: 手动同步脚本
+
+### 调试和分析脚本
+- `debug_count.py`: 调试计数问题
+- `debug_detailed.py`: 详细调试信息
+- `analyze_email_patterns.py`: 分析邮箱模式
+- `analyze_final_status.py`: 分析最终状态
+- `check_email_mismatch.py`: 检查邮箱不匹配
 
 ### 卡密生成脚本（卡密脚本/）
 - `kami.py`: 生成并上传7天/30天卡密到API

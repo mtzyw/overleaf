@@ -132,11 +132,17 @@ class SystemMaintenance:
                 }
             
             # 4. 检查数据库外用户（只在Overleaf中存在）
-            db_emails = {invite.email for invite in db_invites}
+            # 检查所有数据库记录，不仅仅是未清理的
+            all_db_invites = (
+                self.db.query(models.Invite)
+                .filter(models.Invite.account_id == account.id)
+                .all()
+            )
+            all_db_emails = {invite.email for invite in all_db_invites}
             database_external_users = []
             
             for email, ol_data in overleaf_status.items():
-                if email not in db_emails:
+                if email not in all_db_emails:
                     database_external_users.append({
                         "email": email,
                         "user_id": ol_data["user_id"],
@@ -206,8 +212,8 @@ class SystemMaintenance:
             if updates_applied > 0 or external_users_created > 0:
                 self.db.commit()
             
-            # 7. 修正账户计数
-            account.invites_sent = self.status_manager.calculate_invites_sent(self.db, account)
+            # 7. 修正账户计数 - 基于Overleaf真实数据
+            account.invites_sent = overleaf_count
             self.db.commit()
             
             logger.info(f"  ✅ 同步完成: 修复{updates_applied}条，新增{external_users_created}条，计数{account.invites_sent}")
@@ -383,9 +389,9 @@ class SystemMaintenance:
         logger.info("🗑️ 步骤3: 清理过期邀请")
         expired_cleaned = self.cleanup_expired_invites()
         
-        # 4. 修复账户计数
-        logger.info("🔧 步骤4: 修复账户计数")
-        accounts_fixed = self.fix_account_counts()
+        # 4. 修复账户计数（已在步骤2中基于Overleaf真实数据完成）
+        logger.info("🔧 步骤4: 跳过账户计数修复（已在同步中完成）")
+        accounts_fixed = 0
         
         # 5. 生成维护后报告
         logger.info("📋 步骤5: 生成维护后报告")
