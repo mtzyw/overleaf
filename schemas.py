@@ -9,6 +9,12 @@ from typing import Optional, List, Dict, Any
 class EmailRequest(BaseModel):
     email: EmailStr
 
+class CardDetectRequest(BaseModel):
+    card: str
+
+class ReactivateRequest(BaseModel):
+    card: str
+
 
 # -------- Accounts 相关 --------
 
@@ -61,6 +67,14 @@ class InviteResponse(BaseModel):
     result: Dict[str, Any]
     sent_ts: Optional[int]
     expires_ts: Optional[int]
+
+class CardDetectResponse(BaseModel):
+    mode: str  # "normal" 或 "reactivate"
+    email: Optional[EmailStr] = None
+    remaining_days: Optional[int] = None
+    expires_at: Optional[int] = None
+    can_reactivate: bool
+    message: str
 
 class InviteRecord(BaseModel):
     id: int

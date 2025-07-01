@@ -19,10 +19,15 @@
 
 #### 1.1 获取账户列表
 ```http
-GET /api/v1/accounts?page=1&size=10&email={email}
+GET /api/v1/accounts?page=1&size=20&email={email}
 ```
 **功能**: 分页查询账户，支持邮箱筛选
-**响应**: 账户列表和分页信息
+**参数**:
+- `page`: 页码，默认1
+- `size`: 每页数量，默认20
+- `email`: 可选，按邮箱筛选
+
+**响应**: 账户列表
 
 #### 1.2 添加新账户
 ```http
@@ -32,9 +37,11 @@ Content-Type: application/json
 {
   "email": "user@example.com",
   "password": "password123",
-  "group_id": "group123"
+  "group_id": "group123456",
+  "max_invites": 100
 }
 ```
+**功能**: 创建新的Overleaf账户
 
 #### 1.3 删除账户
 ```http
@@ -45,6 +52,7 @@ Content-Type: application/json
   "email": "user@example.com"
 }
 ```
+**功能**: 删除指定账户
 
 #### 1.4 刷新账户Token
 ```http
@@ -55,34 +63,33 @@ Content-Type: application/json
   "email": "user@example.com"
 }
 ```
-**功能**: 重新登录Overleaf获取最新session和csrf_token
+**功能**: 刷新账户的session和CSRF token
 
 ---
 
-### 💳 2. 卡密管理 (`/api/v1/cards`)
+### 🎫 2. 卡密管理 (`/api/v1/cards`)
 
 #### 2.1 获取卡密列表
 ```http
-GET /api/v1/cards?page=1&size=10&used=false
+GET /api/v1/cards?page=1&size=50&used=false
 ```
-**参数**: used - 筛选已使用/未使用的卡密
+**功能**: 分页查询卡密，支持使用状态筛选
+**参数**:
+- `page`: 页码，默认1
+- `size`: 每页数量，默认50
+- `used`: 可选，筛选使用状态
 
-#### 2.2 批量新增卡密
+#### 2.2 批量添加卡密
 ```http
 POST /api/v1/cards/add
 Content-Type: application/json
 
 [
-  {
-    "code": "ABC123",
-    "days": 30
-  },
-  {
-    "code": "XYZ789", 
-    "days": 7
-  }
+  {"code": "abc12", "days": 7},
+  {"code": "def34", "days": 30}
 ]
 ```
+**功能**: 批量创建卡密，重复code会被跳过
 
 #### 2.3 删除卡密
 ```http
@@ -90,30 +97,37 @@ POST /api/v1/cards/delete
 Content-Type: application/json
 
 {
-  "card_ids": [1, 2, 3]
+  "code": "abc12"
 }
 ```
+**功能**: 删除指定卡密
 
 ---
 
 ### 📧 3. 邀请管理 (`/api/v1/invite`)
 
-#### 3.1 发送邀请（核心功能）
+#### 3.1 发送邀请
 ```http
 POST /api/v1/invite
 Content-Type: application/json
 
 {
-  "card_code": "ABC123",
-  "email": "newuser@example.com"
+  "email": "user@example.com",
+  "card": "abc12"
 }
 ```
-**功能**: 使用卡密发送Overleaf邀请，自动选择可用账户
+**功能**: 使用卡密向用户发送Overleaf邀请
+**特性**:
+- 自动选择可用账户
+- 支持多账户轮换重试
+- 智能处理跨群组用户
+- 详细的错误处理和日志
 
-#### 3.2 查询邀请记录
+#### 3.2 获取邀请记录
 ```http
-GET /api/v1/invite/records?page=1&size=10&email={email}
+GET /api/v1/invite/records?page=1&size=50&email=user@example.com
 ```
+**功能**: 分页查询邀请记录，支持邮箱筛选
 
 #### 3.3 更新邀请过期时间
 ```http
@@ -122,128 +136,252 @@ Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "additional_days": 30
+  "expires_at": 1704067200
+}
+```
+**功能**: 修改指定邮箱的邀请过期时间
+
+#### 3.4 🆕 检测卡密状态
+```http
+GET /api/v1/invite/detect?card=CARD30D
+```
+**功能**: 智能检测卡密状态，判断是新邀请还是重新激活模式
+**响应示例**:
+```json
+{
+  "mode": "reactivate",
+  "email": "user@example.com", 
+  "remaining_days": 15,
+  "expires_at": 1735660800,
+  "can_reactivate": true,
+  "message": "检测到绑定邮箱：user@example.com，剩余15天权益"
 }
 ```
 
----
-
-### 👥 4. 成员查询 (`/api/v1/members_query`)
-
-#### 4.1 查询组长下的所有成员
+#### 3.5 🆕 一键重新激活
 ```http
-GET /api/v1/members_query/leader_members/{leader_email}
-```
-**响应**: 组长名下的活跃成员和过期成员列表
-
----
-
-### 🔧 5. 成员管理 (`/api/v1/email_ids` & `/api/v1/member`)
-
-#### 5.1 批量更新Email ID
-```http
-POST /api/v1/email_ids/update
+POST /api/v1/invite/reactivate
 Content-Type: application/json
 
 {
-  "leader_email": "leader@example.com"
+  "card": "CARD30D"
 }
 ```
-**功能**: 从Overleaf拉取真实成员数据更新email_id
+**功能**: 通过卡密一键重新激活，自动识别绑定邮箱
+**特性**:
+- 只需要传入卡密，系统自动查找绑定邮箱
+- 防止用户输入错误邮箱
+- 自动验证权益有效期
+- 无缝对接现有邀请逻辑
 
-#### 5.2 删除已接受的成员
+---
+
+### 👥 4. 成员管理 (`/api/v1/member`)
+
+#### 4.1 删除成员
 ```http
 POST /api/v1/member/remove
 Content-Type: application/json
 
 {
-  "member_email": "member@example.com"
+  "email": "user@example.com"
 }
 ```
+**功能**: 从Overleaf群组中删除已接受邀请的成员
+**特性**:
+- 使用事务管理器确保数据一致性
+- 支持跨群组重复用户检测
+- 自动处理404（用户不存在）情况
 
-#### 5.3 撤销未接受的邀请
+#### 4.2 撤销未接受邀请
 ```http
 POST /api/v1/member/revoke_unaccepted
 Content-Type: application/json
 
 {
-  "member_email": "member@example.com"
+  "email": "user@example.com"
 }
 ```
+**功能**: 撤销尚未接受的邀请（PENDING状态）
 
-#### 5.4 批量清理过期成员
+#### 4.3 批量清理过期成员
 ```http
 POST /api/v1/member/cleanup_expired
 ```
+**功能**: 批量清理所有过期的邀请记录
+**特性**:
+- 智能区分已接受和未接受状态
+- 限制单次处理100个记录
+- 自动更新账户计数
 
-#### 5.5 系统状态监控
+#### 4.4 数据验证接口
 ```http
-GET /api/v1/member/status/validation          # 验证数据一致性
-GET /api/v1/member/status/account/{email}     # 指定账户状态
-GET /api/v1/member/status/global              # 全局系统状态
-POST /api/v1/member/fix/account_counts        # 修复账户计数
+GET /api/v1/member/status/validation
 ```
+**功能**: 验证系统数据一致性，返回发现的问题列表
+
+#### 4.5 获取账户状态
+```http
+GET /api/v1/member/status/account/{account_email}
+```
+**功能**: 获取指定账户的详细状态信息
+
+#### 4.6 修复账户计数
+```http
+POST /api/v1/member/fix/account_counts
+```
+**功能**: 修复所有账户的邀请计数不一致问题
+
+#### 4.7 获取全局状态
+```http
+GET /api/v1/member/status/global
+```
+**功能**: 获取系统整体状态统计
 
 ---
 
-### 🛠️ 6. 维护功能 (`/api/v1/maintenance`)
+### 🔍 5. 成员查询 (`/api/v1/members_query`)
 
-#### 6.1 清理过期邀请
+#### 5.1 查询组长成员
 ```http
-POST /api/v1/maintenance/cleanup_expired?delete_records=false&limit=100
+GET /api/v1/members_query/leader_members/{leader_email}
 ```
-**参数**: 
-- delete_records: 是否真正删除记录
-- limit: 单次处理数量限制
+**功能**: 根据组长邮箱查询其名下所有活跃成员
+**响应包含**:
+- 总成员数统计
+- 活跃成员列表（含过期时间和email_id）
+- 过期但未清理的成员数量
 
 ---
 
-### 🔄 7. 同步管理 (`/api/v1/sync`) ⭐ **新增**
+### 🔧 6. 系统维护 (`/api/v1/maintenance`)
 
-#### 7.1 获取同步状态
+#### 6.1 清理过期记录
+```http
+POST /api/v1/maintenance/cleanup_expired?delete_records=true&limit=100
+```
+**功能**: 清理过期邀请记录
+**参数**:
+- `delete_records`: 是否真正删除记录（默认True）
+- `limit`: 单次处理的最大数量（默认100）
+
+---
+
+### 📊 7. 数据一致性管理 (`/api/v1/data-consistency`)
+
+#### 7.1 验证数据一致性
+```http
+GET /api/v1/data-consistency/validate
+```
+**功能**: 全面验证系统数据一致性
+**检查项目**:
+- 账户计数一致性
+- 邀请状态逻辑一致性
+- 孤立的卡密关联
+
+#### 7.2 生成一致性报告
+```http
+GET /api/v1/data-consistency/report
+```
+**功能**: 生成详细的数据一致性报告
+**包含信息**:
+- 每个账户的详细状态
+- 全局统计数据
+- 配额使用率
+
+#### 7.3 修复计数问题
+```http
+POST /api/v1/data-consistency/fix-counts?dry_run=false
+```
+**功能**: 修复所有账户的邀请计数
+**参数**:
+- `dry_run`: 是否只预览不实际修复（默认false）
+
+#### 7.4 获取账户一致性
+```http
+GET /api/v1/data-consistency/account/{email}
+```
+**功能**: 获取指定账户的详细一致性信息
+
+#### 7.5 清理过期邀请
+```http
+POST /api/v1/data-consistency/cleanup-expired?dry_run=false&account_email={email}
+```
+**功能**: 清理过期邀请，支持指定账户
+**参数**:
+- `dry_run`: 是否只预览（默认false）
+- `account_email`: 可选，指定处理的账户
+
+#### 7.6 检查孤立卡密
+```http
+GET /api/v1/data-consistency/orphaned-cards
+```
+**功能**: 检查孤立的卡密关联和未使用的卡密
+
+---
+
+### 🔄 8. 数据同步 (`/api/v1/sync`)
+
+#### 8.1 获取同步状态
 ```http
 GET /api/v1/sync/status
 ```
-**响应**: 当前同步进度、运行状态、预计剩余时间
+**功能**: 获取当前同步任务的状态和进度
 
-#### 7.2 启动全部账户同步（异步）
+#### 8.2 启动全量同步
 ```http
 POST /api/v1/sync/all
 ```
-**功能**: 后台异步同步所有25个账户，自动处理数据库外用户
-**响应**: 启动确认信息
+**功能**: 启动所有账户的同步任务（后台异步执行）
+**特性**:
+- 后台异步处理
+- 进度追踪
+- 批量处理优化
 
-#### 7.3 同步单个账户
+#### 8.3 同步单个账户
 ```http
 POST /api/v1/sync/account/{email}
 ```
-**功能**: 立即同步指定账户
-**响应**: 详细同步结果
+**功能**: 同步指定账户的数据
+**同步内容**:
+- 检测Overleaf中的实际成员
+- 创建数据库外用户记录
+- 修复状态不一致问题
+- 更新email_id
 
-#### 7.4 获取上次同步结果
+#### 8.4 获取同步结果
 ```http
 GET /api/v1/sync/results
 ```
-**响应**: 最后一次同步的摘要结果
+**功能**: 获取最后一次同步的结果摘要
 
 ---
 
-### 👤 8. 手动用户管理 (`/api/v1/manual-users`) ⭐ **新增**
+### 👤 9. 手动用户管理 (`/api/v1/manual-users`)
 
-#### 8.1 获取手动用户列表
+专门管理expires_at=NULL的手动添加用户
+
+#### 9.1 获取手动用户列表
 ```http
 GET /api/v1/manual-users/list?account_email={email}&limit=100
 ```
-**功能**: 查看所有expires_at=NULL的手动添加用户
-**参数**: 可按账户筛选
+**功能**: 获取所有手动添加的用户列表
+**参数**:
+- `account_email`: 可选，按账户筛选
+- `limit`: 返回数量限制（默认100）
 
-#### 8.2 获取手动用户统计
+#### 9.2 获取手动用户统计
 ```http
 GET /api/v1/manual-users/stats
 ```
-**响应**: 总数、按账户分布、接受状态、无卡密数量
+**功能**: 获取手动用户的详细统计信息
+**统计内容**:
+- 总数统计
+- 按账户分布
+- 接受/待处理状态统计
+- 无卡密关联统计
 
-#### 8.3 为手动用户设置过期时间
+#### 9.3 设置用户过期时间
 ```http
 POST /api/v1/manual-users/{user_id}/set-expiry
 Content-Type: application/json
@@ -251,11 +389,12 @@ Content-Type: application/json
 {
   "days": 30,
   "card_id": 123,
-  "note": "客户确认30天有效期"
+  "note": "客户续费"
 }
 ```
+**功能**: 为手动用户设置过期时间，转换为正常管理
 
-#### 8.4 批量设置过期时间
+#### 9.4 批量设置过期时间
 ```http
 POST /api/v1/manual-users/bulk-set-expiry
 Content-Type: application/json
@@ -264,191 +403,158 @@ Content-Type: application/json
   "user_ids": [1, 2, 3],
   "days": 30,
   "card_id": 123,
-  "note": "批量处理"
+  "note": "批量续费"
 }
 ```
+**功能**: 批量为多个手动用户设置过期时间
 
-#### 8.5 删除手动用户
+#### 9.5 删除手动用户
 ```http
-DELETE /api/v1/manual-users/{user_id}?reason=客户取消订阅
+DELETE /api/v1/manual-users/{user_id}?reason=客户取消
 ```
+**功能**: 删除（标记为已清理）手动用户
 
-#### 8.6 获取手动用户详情
+#### 9.6 获取用户详情
 ```http
 GET /api/v1/manual-users/{user_id}/details
 ```
+**功能**: 获取手动用户的详细信息和状态
 
 ---
 
-### 📊 9. 数据一致性管理 (`/api/v1/data-consistency`) ⭐ **新增**
+### ✉️ 10. 邮箱ID更新 (`/api/v1/email_ids`)
 
-#### 9.1 验证数据一致性
+#### 10.1 批量更新邮箱ID
 ```http
-GET /api/v1/data-consistency/validate
-```
-**功能**: 检查系统是否存在数据不一致问题
-**响应**: 问题列表、受影响账户、建议操作
+POST /api/v1/email_ids/update
+Content-Type: application/json
 
-#### 9.2 生成系统状态报告
-```http
-GET /api/v1/data-consistency/report
+{
+  "leader_email": "leader@example.com"
+}
 ```
-**功能**: 完整的系统健康报告
-**响应**: 所有账户状态、配额使用率、全局统计
-
-#### 9.3 修复账户计数
-```http
-POST /api/v1/data-consistency/fix-counts?dry_run=false
-```
-**功能**: 修复所有账户的邀请计数不匹配问题
-**参数**: dry_run=true 仅预览，false 实际执行
-
-#### 9.4 获取单个账户详情
-```http
-GET /api/v1/data-consistency/account/{email}
-```
-**响应**: 指定账户的详细一致性信息
-
-#### 9.5 清理过期邀请
-```http
-POST /api/v1/data-consistency/cleanup-expired?dry_run=false&account_email={email}
-```
-**功能**: 清理过期邀请（自动跳过手动用户）
-**参数**: 可指定账户或全部处理
-
-#### 9.6 检查孤立数据
-```http
-GET /api/v1/data-consistency/orphaned-cards
-```
-**功能**: 检查孤立的卡密关联和未使用的卡密
+**功能**: 从Overleaf获取真实成员数据，更新本地email_id
+**特性**:
+- 自动解析Overleaf页面数据
+- 只更新指定组长账户的记录
+- 防止跨群组数据污染
 
 ---
 
-## 🚀 前端集成建议
+## 🚀 使用示例
 
-### 1. 一键同步功能
-```javascript
-// 启动全部同步
-async function startFullSync() {
-  const response = await fetch('/api/v1/sync/all', { method: 'POST' });
-  const result = await response.json();
-  
-  // 轮询检查进度
-  const checkProgress = setInterval(async () => {
-    const status = await fetch('/api/v1/sync/status').then(r => r.json());
-    updateProgressBar(status.progress);
-    
-    if (!status.is_running) {
-      clearInterval(checkProgress);
-      showSyncComplete();
-    }
-  }, 2000);
-}
+### 典型业务流程
+
+#### 1. 发送邀请完整流程
+```bash
+# 1. 添加卡密
+curl -X POST "http://localhost:8000/api/v1/cards/add" \
+  -H "Content-Type: application/json" \
+  -d '[{"code":"test123","days":7}]'
+
+# 2. 发送邀请
+curl -X POST "http://localhost:8000/api/v1/invite" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","card":"test123"}'
+
+# 3. 查看邀请记录
+curl "http://localhost:8000/api/v1/invite/records?email=user@example.com"
 ```
 
-### 2. 手动用户管理界面
-```javascript
-// 获取手动用户列表
-async function getManualUsers() {
-  const response = await fetch('/api/v1/manual-users/list');
-  const users = await response.json();
-  return users;
-}
+#### 2. 数据一致性检查和修复
+```bash
+# 1. 验证数据一致性
+curl "http://localhost:8000/api/v1/data-consistency/validate"
 
-// 批量设置过期时间
-async function batchSetExpiry(userIds, days) {
-  const response = await fetch('/api/v1/manual-users/bulk-set-expiry', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_ids: userIds, days: days })
-  });
-  return response.json();
-}
+# 2. 生成详细报告
+curl "http://localhost:8000/api/v1/data-consistency/report"
+
+# 3. 修复计数问题
+curl -X POST "http://localhost:8000/api/v1/data-consistency/fix-counts"
+
+# 4. 清理过期邀请
+curl -X POST "http://localhost:8000/api/v1/member/cleanup_expired"
 ```
 
-### 3. 定时任务支持
-```javascript
-// 定时数据一致性检查
-setInterval(async () => {
-  const validation = await fetch('/api/v1/data-consistency/validate').then(r => r.json());
-  if (!validation.is_valid) {
-    notifyAdmin('发现数据不一致问题，需要处理');
-  }
-}, 30 * 60 * 1000); // 每30分钟检查一次
+#### 3. 同步Overleaf数据
+```bash
+# 1. 同步单个账户
+curl -X POST "http://localhost:8000/api/v1/sync/account/leader@example.com"
 
-// 定时全量同步
-function scheduleAutoSync() {
-  // 每天凌晨2点执行全量同步
-  const schedule = '0 2 * * *'; // cron格式
-  cron.schedule(schedule, async () => {
-    await fetch('/api/v1/sync/all', { method: 'POST' });
-  });
-}
+# 2. 启动全量同步
+curl -X POST "http://localhost:8000/api/v1/sync/all"
+
+# 3. 查看同步状态
+curl "http://localhost:8000/api/v1/sync/status"
 ```
 
-### 4. 系统监控面板
-```javascript
-// 获取系统概览
-async function getSystemOverview() {
-  const [consistency, manualStats, syncStatus] = await Promise.all([
-    fetch('/api/v1/data-consistency/report').then(r => r.json()),
-    fetch('/api/v1/manual-users/stats').then(r => r.json()),
-    fetch('/api/v1/sync/status').then(r => r.json())
-  ]);
-  
-  return {
-    totalAccounts: consistency.total_accounts,
-    healthyAccounts: consistency.consistent_accounts,
-    manualUsers: manualStats.total_manual_users,
-    isSyncing: syncStatus.is_running,
-    quotaUtilization: consistency.quota_utilization
-  };
-}
+#### 4. 手动用户管理
+```bash
+# 1. 查看手动用户列表
+curl "http://localhost:8000/api/v1/manual-users/list"
+
+# 2. 为手动用户设置过期时间
+curl -X POST "http://localhost:8000/api/v1/manual-users/123/set-expiry" \
+  -H "Content-Type: application/json" \
+  -d '{"days":30,"card_id":456,"note":"客户续费"}'
+
+# 3. 批量设置过期时间
+curl -X POST "http://localhost:8000/api/v1/manual-users/bulk-set-expiry" \
+  -H "Content-Type: application/json" \
+  -d '{"user_ids":[1,2,3],"days":30,"note":"批量续费"}'
 ```
 
-## 📈 推荐使用场景
+#### 5. 🆕 一键重新激活完整流程
+```bash
+# 1. 检测卡密状态（前端智能判断）
+curl "http://localhost:8000/api/v1/invite/detect?card=CARD30D"
 
-### 日常运维场景
-1. **定期数据同步**: 使用 `/api/v1/sync/all` 每日自动同步
-2. **手动用户处理**: 通过 `/api/v1/manual-users/` 接口管理客户续费
-3. **系统健康检查**: 定期调用 `/api/v1/data-consistency/validate`
-4. **过期清理**: 自动化调用 `/api/v1/data-consistency/cleanup-expired`
+# 2. 根据检测结果选择操作：
+# 如果是新卡密 -> 正常邀请流程
+curl -X POST "http://localhost:8000/api/v1/invite" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","card":"CARD30D"}'
 
-### 客户服务场景
-1. **邀请发送**: 核心接口 `/api/v1/invite`
-2. **成员查询**: 使用 `/api/v1/members_query/leader_members/{email}`
-3. **延期服务**: `/api/v1/invite/update_expiration`
-4. **成员删除**: `/api/v1/member/remove` 或 `/api/v1/member/revoke_unaccepted`
+# 如果可重新激活 -> 一键重新激活
+curl -X POST "http://localhost:8000/api/v1/invite/reactivate" \
+  -H "Content-Type: application/json" \
+  -d '{"card":"CARD30D"}'
+```
 
-### 故障排查场景
-1. **数据不一致**: `/api/v1/data-consistency/validate` + `/api/v1/data-consistency/fix-counts`
-2. **孤立数据**: `/api/v1/data-consistency/orphaned-cards`
-3. **账户状态**: `/api/v1/data-consistency/account/{email}`
-4. **手动修复**: 各种 dry_run 参数预览再执行
+---
 
-## ✨ 核心功能特点
+## 📋 邀请状态说明
 
-✅ **异步处理**: 同步任务在后台运行，不会阻塞API
-✅ **进度跟踪**: 实时查询同步进度和状态
-✅ **数据安全**: 所有操作都有dry_run预览模式
-✅ **智能同步**: 自动处理数据库外用户，维护数据一致性
-✅ **批量操作**: 支持批量设置过期时间和删除用户
-✅ **详细日志**: 每个操作都有详细的结果和元数据记录
-✅ **状态管理**: 统一的邀请状态管理器确保数据准确性
-✅ **容错机制**: 完善的错误处理和重试逻辑
+系统使用统一的状态管理器，邀请状态定义如下：
 
-## 🎯 系统优化建议
+- **PENDING**: 已发送，等待接受（email_id为空，未过期，未清理）
+- **ACCEPTED**: 已接受，成员活跃（email_id存在，未清理）  
+- **EXPIRED**: 已过期，待清理（过期时间<当前时间，未清理）
+- **PROCESSED**: 已处理（cleaned=True，包括删除/撤销/过期清理）
 
-1. **添加API认证**: 建议添加JWT或API Key认证机制
-2. **请求限流**: 防止API被滥用，特别是同步相关接口
-3. **操作日志**: 记录所有API调用和数据变更日志
-4. **数据备份**: 重要操作前自动备份数据库
-5. **监控告警**: 集成监控系统，异常时自动告警
+## 🔐 权限和安全
 
-现在你可以通过这些API接口实现：
-1. 🔄 前端一键同步所有账户
-2. ⏰ 定时自动数据一致性检查  
-3. 🖥️ 可视化的手动用户管理界面
-4. 🗑️ 自动化的过期邀请清理
-5. 📊 系统健康状态监控
-6. 🎯 完整的运维自动化流程
+- 当前版本允许跨域访问（生产环境需要限制）
+- YesCaptcha API密钥需要通过环境变量配置
+- 建议在生产环境中添加认证中间件
+
+## 📊 监控和日志
+
+- 所有关键操作都有详细日志记录
+- 支持实时数据一致性验证
+- 提供系统状态监控接口
+- 异步任务进度追踪
+
+## 🚀 性能优化
+
+- 使用单例模式管理浏览器资源
+- 支持批量操作减少数据库访问
+- 异步处理长时间运行的任务
+- 智能缓存和会话复用
+
+---
+
+**版本**: v2.0 (2024年重构版本)
+**更新日期**: 2024年最新版本
+
+**重要提醒**: 使用前请确保已配置好YesCaptcha服务和Playwright浏览器环境。

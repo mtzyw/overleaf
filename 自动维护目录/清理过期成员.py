@@ -18,7 +18,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from database import SessionLocal
-from invite_status_manager import InviteStatusManager
+from invite_status_manager import InviteStatusManager, InviteStatus
 import models
 from overleaf_utils import (
     get_tokens,
@@ -227,7 +227,7 @@ class ExpiredMemberCleaner:
                     
                     status = self.manager.get_invite_status(invite)
                     
-                    if status == InviteStatusManager.InviteStatus.ACCEPTED:
+                    if status == InviteStatus.ACCEPTED:
                         # 已接受的邀请，需要调用删除成员API
                         result = await self.remove_member_from_overleaf(invite, account)
                         if result["success"]:
@@ -239,7 +239,7 @@ class ExpiredMemberCleaner:
                         else:
                             error_count += 1
                             
-                    elif status == InviteStatusManager.InviteStatus.PENDING:
+                    elif status == InviteStatus.PENDING:
                         # 未接受的邀请，撤销邀请
                         result = await self.revoke_pending_invite(invite, account)
                         if result["success"]:
@@ -264,9 +264,8 @@ class ExpiredMemberCleaner:
                 except Exception as e:
                     logger.error(f"❌ 清理失败 {invite.email}: {e}")
                     error_count += 1
-                    # 发生错误时，标记为已处理避免重复尝试
-                    invite.cleaned = True
-                    affected_accounts.add(invite.account_id)
+                    # 不标记为已处理，保留原状态，下次继续尝试
+                    # 只有成功调用Overleaf API后才标记为已处理
             
             # 更新受影响账户的计数
             for account_id in affected_accounts:
